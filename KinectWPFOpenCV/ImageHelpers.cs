@@ -14,8 +14,8 @@ namespace KinectWPFOpenCV
     public static class ImageHelpers
     {
        
-        private const int MaxDepthDistance = 4000;
-        private const int MinDepthDistance = 850;
+        //private const int MaxDepthDistance = 4000;
+        //private const int MinDepthDistance = 850;
         private const int MaxDepthDistanceOffset = 3150;
 
         public static BitmapSource SliceDepthImage(this DepthImageFrame image, int min = 20, int max = 1000)
@@ -42,7 +42,7 @@ namespace KinectWPFOpenCV
                 int depth = rawDepthData[depthIndex] >> DepthImageFrame.PlayerIndexBitmaskWidth;
 
                 // Map the distance to an intesity that can be represented in RGB
-                var intensity = CalculateIntensityFromDistance(depth);
+                var intensity = CalculateIntensityFromDistance(depth, min, max);
 
                 if (depth > min && depth < max)
                 {
@@ -56,15 +56,15 @@ namespace KinectWPFOpenCV
             return BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, width * 4);
         }
 
-        public static byte CalculateIntensityFromDistance(int distance)
+        public static byte CalculateIntensityFromDistance(int distance, int min, int max)
         {
             // This will map a distance value to a 0 - 255 range
             // for the purposes of applying the resulting value
             // to RGB pixels.
-            int newMax = distance - MinDepthDistance;
+            int newMax = distance - min;
             if (newMax > 0)
                 return (byte)(255 - (255 * newMax
-                / (MaxDepthDistanceOffset)));
+                / (max)));
             else
                 return (byte)255;
         }

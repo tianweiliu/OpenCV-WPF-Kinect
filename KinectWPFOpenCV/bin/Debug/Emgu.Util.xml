@@ -32,20 +32,31 @@
             <summary>
             Create a binary File Storage with the specific data
             </summary>
-            <param name="fileName">The file name of the storage</param>
+            <param name="fileName">The file name of the storage, all data in the existing file will be replaced</param>
             <param name="samples">The data which will be stored in the storage</param>
         </member>
-        <member name="M:Emgu.Util.BinaryFileStorage`1.Peek">
+        <member name="M:Emgu.Util.BinaryFileStorage`1.Append(System.Collections.Generic.IEnumerable{`0})">
             <summary>
-            Get a copy of the first element in the storage. If the storage is empty, a default value will be returned
+            Append the samples to the end of the storage
             </summary>
-            <returns>A copy of the first element in the storage. If the storage is empty, a default value will be returned</returns>
+            <param name="samples">The samples to be appended to the storage</param>
+        </member>
+        <member name="M:Emgu.Util.BinaryFileStorage`1.Clear">
+            <summary>
+            Delete all data in the existing storage, if there is any.
+            </summary>
         </member>
         <member name="M:Emgu.Util.BinaryFileStorage`1.EstimateSize">
             <summary>
             Estimate the number of elements in this storage as the size of the storage divided by the size of the elements
             </summary>
             <returns>An estimation of the number of elements in this storage</returns>
+        </member>
+        <member name="M:Emgu.Util.BinaryFileStorage`1.Peek">
+            <summary>
+            Get a copy of the first element in the storage. If the storage is empty, a default value will be returned
+            </summary>
+            <returns>A copy of the first element in the storage. If the storage is empty, a default value will be returned</returns>
         </member>
         <member name="M:Emgu.Util.BinaryFileStorage`1.GetSubsamples(System.Int32)">
             <summary>
@@ -224,7 +235,7 @@
             Get the type of the current operating system
             </summary>
         </member>
-        <member name="P:Emgu.Util.Platform.Runtime">
+        <member name="P:Emgu.Util.Platform.ClrType">
             <summary>
             Get the type of the current runtime environment
             </summary>
@@ -239,7 +250,7 @@
             Convert an object to an xml document
             </summary>
             <typeparam name="T">The type of the object to be converted</typeparam>
-            <param name="o">The object to be serialized</param>
+            <param name="sourceObject">The object to be serialized</param>
             <returns>An xml document that represents the object</returns>
         </member>
         <member name="M:Emgu.Util.Toolbox.XmlSerialize``1(``0,System.Type[])">
@@ -247,19 +258,19 @@
             Convert an object to an xml document
             </summary>
             <typeparam name="T">The type of the object to be converted</typeparam>
-            <param name="o">The object to be serialized</param>
+            <param name="sourceObject">The object to be serialized</param>
             <param name="knownTypes">Other types that it must known ahead to serialize the object</param>
             <returns>An xml document that represents the object</returns>
         </member>
-        <member name="M:Emgu.Util.Toolbox.XmlDeserialize``1(System.Xml.XmlDocument)">
+        <member name="M:Emgu.Util.Toolbox.XmlDeserialize``1(System.Xml.Linq.XDocument)">
             <summary>
             Convert an xml document to an object
             </summary>
             <typeparam name="T">The type of the object to be converted to</typeparam>
-            <param name="xDoc">The xml document</param>
+            <param name="document">The xml document</param>
             <returns>The object representation as a result of the deserialization of the xml document</returns>
         </member>
-        <member name="M:Emgu.Util.Toolbox.XmlDeserialize``1(System.Xml.XmlDocument,System.Type[])">
+        <member name="M:Emgu.Util.Toolbox.XmlDeserialize``1(System.Xml.Linq.XDocument,System.Type[])">
             <summary>
             Convert an xml document to an object
             </summary>
@@ -297,14 +308,14 @@
             Use reflection to find the base type. If such type do not exist, null is returned
             </summary>
             <param name="currentType">The type to search from</param>
-            <param name="baseclassName">The name of the base class to search</param>
+            <param name="baseClassName">The name of the base class to search</param>
             <returns>The base type</returns>
         </member>
         <member name="M:Emgu.Util.Toolbox.ToBytes``1(``0[])">
             <summary>
             Convert some generic vector to vector of Bytes
             </summary>
-            <typeparam name="D">type of the input vector</typeparam>
+            <typeparam name="TData">type of the input vector</typeparam>
             <param name="data">array of data</param>
             <returns>the byte vector</returns>
         </member>
@@ -312,7 +323,7 @@
             <summary>
             Copy a generic vector to the unmanaged memory
             </summary>
-            <typeparam name="D">The data type of the vector</typeparam>
+            <typeparam name="TData">The data type of the vector</typeparam>
             <param name="src">The source vector</param>
             <param name="dest">Pointer to the destination unmanaged memory</param>
         </member>
@@ -320,8 +331,8 @@
             <summary>
             Copy a jagged two dimensional array to the unmanaged memory
             </summary>
-            <typeparam name="D">The data type of the jagged two dimensional</typeparam>
-            <param name="src">The src array</param>
+            <typeparam name="TData">The data type of the jagged two dimensional</typeparam>
+            <param name="source">The source array</param>
             <param name="dest">Pointer to the destination unmanaged memory</param>
         </member>
         <member name="M:Emgu.Util.Toolbox.CopyMatrix``1(System.IntPtr,``0[][])">
@@ -376,7 +387,7 @@
             Decrements the reference count of the loaded dynamic-link library (DLL). When the reference count reaches zero, the module is unmapped from the address space of the calling process and the handle is no longer valid
             </summary>
             <param name="handle">The handle to the library</param>
-            <returns>If the function succeeds, the return value is nonzero. If the function fails, the return value is zero.</returns>
+            <returns>If the function succeeds, the return value is true. If the function fails, the return value is false.</returns>
         </member>
         <member name="M:Emgu.Util.Toolbox.SetDllDirectory(System.String)">
             <summary>
@@ -400,17 +411,37 @@
             Linux
             </summary>
         </member>
-        <member name="T:Emgu.Util.TypeEnum.Runtime">
+        <member name="F:Emgu.Util.TypeEnum.OS.MacOSX">
+            <summary>
+            Mac OSX
+            </summary>
+        </member>
+        <member name="F:Emgu.Util.TypeEnum.OS.IOS">
+            <summary>
+            iOS devices. iPhone, iPad, iPod Touch
+            </summary>
+        </member>
+        <member name="F:Emgu.Util.TypeEnum.OS.Android">
+            <summary>
+            Android devices
+            </summary>
+        </member>
+        <member name="T:Emgu.Util.TypeEnum.ClrType">
             <summary>
             The runtime environment
             </summary>
         </member>
-        <member name="F:Emgu.Util.TypeEnum.Runtime.DotNet">
+        <member name="F:Emgu.Util.TypeEnum.ClrType.DotNet">
             <summary>
             .Net runtime
             </summary>
         </member>
-        <member name="F:Emgu.Util.TypeEnum.Runtime.Mono">
+        <member name="F:Emgu.Util.TypeEnum.ClrType.NetFxCore">
+            <summary>
+            Windows Store app runtime
+            </summary>
+        </member>
+        <member name="F:Emgu.Util.TypeEnum.ClrType.Mono">
             <summary>
             Mono runtime
             </summary>
