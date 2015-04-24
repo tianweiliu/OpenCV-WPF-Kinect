@@ -16,7 +16,7 @@ namespace KinectWPFOpenCV
        
         //private const int MaxDepthDistance = 4000;
         //private const int MinDepthDistance = 850;
-        private const int MaxDepthDistanceOffset = 3150;
+        //private const int MaxDepthDistanceOffset = 3150;
 
         public static BitmapSource SliceDepthImage(this DepthImageFrame image, int min = 20, int max = 1000)
         {

@@ -38,7 +38,7 @@
                                 <TextBlock Text="Color" Margin="0 -14 0 0" Padding="10"/>
                             </RadioButton>
                         </StackPanel>
-                        <Image Margin="0,0,0,0" Name="colorImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                        <Image Margin="0,0,0,0" Name="colorImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" MouseDown="colorImg_MouseDown" />
                     </StackPanel>
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Background="#ccc" Height="42">
@@ -46,15 +46,22 @@
                                 <TextBlock Text="Depth" Margin="0 -14 0 0" Padding="10"/>
                             </RadioButton>
                         </StackPanel>
-                        <Image Margin="0,0,0,0" Name="depthImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                        <Image Margin="0,0,0,0" Name="depthImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" MouseDown="depthImg_MouseDown" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Background="#ccc" Text="Info" Margin="0,0,0,0" Padding="10" Height="42" Width="198"/>
+                        <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                            <TextBlock Text="Blobs Detected" Margin="10 0 0 0" Foreground="#FFC7C7C7" />
+                            <TextBlock TextWrapping="Wrap" x:Name="txtBlobCount" Text="0" Margin="10 0 0 0" Foreground="#FFC7C7C7" />
+                        </StackPanel>
+                        <TextBlock TextWrapping="Wrap" x:Name="txtOscStatus" Text="Osc Status" Margin="10 10 0 0" Foreground="#FFC7C7C7" />
+                        <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
+                            <TextBlock Text="Kinect" Margin="10 0 0 0" Foreground="#FFC7C7C7" />
+                            <TextBlock TextWrapping="Wrap" x:Name="txtInfo" Text="N/A" Margin="10 0 0 0" Foreground="#FFC7C7C7"/>
+                            <TextBlock TextWrapping="Wrap" x:Name="txtFPS" Text="0" Margin="10 0 0 0" Foreground="#FFC7C7C7" />
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
-                <TextBlock Background="#ccc" Text="Info" Margin="0,0,0,0" Padding="10"/>
-                <StackPanel Orientation="Horizontal" Margin="0 10 0 0">
-                    <TextBlock Text="Blobs Detected" Margin="10 0 0 0" Foreground="#FFC7C7C7" />
-                    <TextBlock TextWrapping="Wrap" x:Name="txtBlobCount" Text="0" Margin="10 0 0 0" Foreground="#FFC7C7C7" />
-                </StackPanel>
-                <TextBlock TextWrapping="Wrap" x:Name="txtInfo" Text="" Padding="10"/>
             </StackPanel>
 
             <StackPanel  Margin="0 0 0 15" Width="160" Background="#f0f0f0" HorizontalAlignment="Left" Grid.Column="2" Grid.Row="1" >
@@ -63,27 +70,33 @@
                         <TextBlock Text="Background" Margin="0 -14 0 0" Padding="10"/>
                     </RadioButton>
                 </StackPanel>                
-                <Image Margin="0,0,0,0" Name="bgImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                <Image Margin="0,0,0,0" Name="bgImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" MouseDown="bgImg_MouseDown" />
                 <StackPanel Orientation="Horizontal">
-                    <Button Margin="5 5 5 5" Name="btnCapture" Width="70" Height="30" Content="Capture" Click="btnCapture_Click" />
-                    <Button Margin="5 5 5 5" Name="btnClear" Width="70" Height="30" Content="Clear" Click="btnClear_Click" />
+                    <Button Margin="5 5 5 5" Name="btnAutoCapture" Width="45" Height="30" Content="Auto" Click="btnAutoCapture_Click" />
+                    <Button Margin="0 5 5 5" Name="btnManualCapture" Width="55" Height="30" Content="Manual" Click="btnManualCapture_Click" />
+                    <Button Margin="0 5 5 5" Name="btnClear" Width="40" Height="30" Content="Clear" Click="btnClear_Click" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Background="#ccc" Height="42">
                     <RadioButton Name="radioDiff" VerticalAlignment="Center" Margin="10 11 0 0" Checked="radioDiff_Checked">
                         <TextBlock Text="Differencing" Margin="0 -14 0 0" Padding="10"/>
                     </RadioButton>
                 </StackPanel>
-                <Image Margin="0,0,0,0" Name="diffImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                <Image Margin="0,0,0,0" Name="diffImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" MouseDown="diffImg_MouseDown" />
                 <StackPanel Orientation="Horizontal" Background="#ccc" Height="42">
                     <RadioButton Name="radioTrack" VerticalAlignment="Center" Margin="10 11 0 0" IsChecked="True" Checked="radioTrack_Checked">
                         <TextBlock Text="Tracking" Margin="0 -14 0 0" Padding="10"/>
                     </RadioButton>
                 </StackPanel>
-                <Image Margin="0,0,0,0" Name="trackImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" />
+                <Image Margin="0,0,0,0" Name="trackImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" MouseDown="trackImg_MouseDown" />
             </StackPanel>
 
             <StackPanel  Margin="0 0 15 15" Width="300" Background="#f0f0f0" HorizontalAlignment="Right" Grid.Column="3" Grid.Row="1" >
                 <TextBlock Text="Settings"  Padding="10" Background="#ccc" />
+                <TextBlock Text="Image" Padding="10"/>
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox x:Name="chkFlipH" Content="Flip Horizontal" VerticalAlignment="Center" Margin="10" IsChecked="True" />
+                    <CheckBox x:Name="chkFlipV" Content="Flip Vertical" VerticalAlignment="Center" Margin="10" />
+                </StackPanel>
                 <TextBlock Text="Min Distance" Padding="10"/>
                 <StackPanel  Orientation="Horizontal">
                     <Slider Width="250"  Minimum="0" Value="0"  Maximum="3000" TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Margin="5"  x:Name="sliderMin" Padding="10"/>
@@ -104,24 +117,33 @@
 
                 <TextBlock Text="Max Blob Size" Padding="10"/>
                 <StackPanel Orientation="Horizontal">
-                    <Slider Width="250" Minimum="1" Value="500" Maximum="500" Margin="5" x:Name="sliderMaxSize"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
+                    <Slider Width="250" Minimum="1" Value="555" Maximum="555" Margin="5" x:Name="sliderMaxSize"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderMaxSize}" VerticalAlignment="Center" />
                 </StackPanel>
-
+                
+                <!--
                 <TextBlock Text="Gamma Correction" Padding="10"/>
                 <StackPanel Orientation="Horizontal">
                     <Slider Width="250" Minimum="0" Value="0.01" Maximum="1" Margin="5" x:Name="sliderGamma"  TickFrequency="0.01" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderGamma}" VerticalAlignment="Center" />
                 </StackPanel>
+                -->
 
                 <TextBlock Text="Threshold" Padding="10"/>
-                <StackPanel Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
                     <Slider Width="250" Minimum="0" Value="10" Maximum="255" Margin="5" x:Name="sliderThreshold"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderThreshold}" VerticalAlignment="Center" />
                 </StackPanel>
 
+                <StackPanel Orientation="Horizontal" Background="#ccc" Height="42">
+                    <TextBlock Text="Open Sound Control"  Padding="10" Background="#ccc" />
+                    <CheckBox x:Name="chkOsc" Content="Connect" VerticalAlignment="Center" IsChecked="True" Checked="chkOsc_Checked" Unchecked="chkOsc_Unchecked" />
+                </StackPanel>
+                <TextBlock Text="IP Address" Padding="10"/>
+                <TextBox x:Name="txtOscIP" Margin="10 0 10 0" Text="127.0.0.1" TextChanged="txtOscIP_TextChanged" />
+                <TextBlock Text="Port" Padding="10"/>
+                <TextBox x:Name="txtOscPort" Margin="10 0 10 0" Text="12000" TextChanged="txtOscPort_TextChanged" />
             </StackPanel>
-
         </Grid>
     </Border>
 </Window>

@@ -24,6 +24,7 @@ c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpe
 c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.exe
 c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.pdb
 c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.csprojResolveAssemblyReference.cache
+C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\cudart32_65.dll
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\opencv_core2410.dll
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\opencv_highgui2410.dll
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\opencv_imgproc2410.dll
@@ -48,4 +49,4 @@ C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\K
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.csproj.GenerateResource.Cache
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.exe
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.pdb
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\cudart32_65.dll
+C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.csprojResolveAssemblyReference.cache
