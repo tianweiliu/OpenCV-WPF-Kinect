@@ -22,6 +22,8 @@ using OSC.NET;
 using TSPS;
 using System.Net;
 using System.Collections;
+using GlobalKeyboardHook;
+using System.Windows.Interop;
 
 namespace KinectWPFOpenCV
 {
@@ -36,7 +38,6 @@ namespace KinectWPFOpenCV
         DepthImagePixel[] depthPixels;
         Image<Bgr, Byte> background;
         Image<Bgr, Byte> latestDepth;
-        Image<Gray, byte> latestGray;
 
         const int BackgroundValidationFrameCount = 60;
         int backgroundValidation = BackgroundValidationFrameCount;
@@ -48,14 +49,19 @@ namespace KinectWPFOpenCV
         double deltaTime = 0;
         DateTime lastFrame;
 
+        //Osc
         OSCTransmitter udpWriter;
 
+        //TSPS
         List<int> peopleEntered = new List<int>();
         Dictionary<int, Person> people = new Dictionary<int, Person>();
 
         //Velocity calculation
         int historyFrameCount = 0;
         Dictionary<int, PersonHistory> peopleHistory = new Dictionary<int, PersonHistory>();
+
+        //Global hotkey
+        KeyboardHandler backgroundCaptureKey;
 
         public MainWindow()
         {
@@ -70,9 +76,14 @@ namespace KinectWPFOpenCV
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-
             KinectSensor.KinectSensors.StatusChanged += sensor_StatusChanged;
+            FindSensor();
+            backgroundCaptureKey = new KeyboardHandler(this, Key.A);
+            KeyboardHandler.keyboardEventHandler += AutoBackgroundCapture;
+        }
 
+        private void FindSensor()
+        {
             foreach (var potentialSensor in KinectSensor.KinectSensors)
             {
                 if (potentialSensor.Status == KinectStatus.Connected)
@@ -92,7 +103,6 @@ namespace KinectWPFOpenCV
                 txtInfo.Text = "Disconnected";
                 sensor_NotReady();
             }
-
         }
 
         private void sensor_StatusChanged(object sender, StatusChangedEventArgs e)
@@ -131,8 +141,7 @@ namespace KinectWPFOpenCV
         {
             if (null != this.sensor)
             {
-
-                this.sensor.DepthStream.Enable(DepthImageFormat.Resolution640x480Fps30);
+                this.sensor.DepthStream.Enable(DepthImageFormat.Resolution320x240Fps30);
                 this.sensor.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
                 this.colorPixels = new byte[this.sensor.ColorStream.FramePixelDataLength];
                 this.depthPixels = new DepthImagePixel[this.sensor.DepthStream.FramePixelDataLength];
@@ -187,6 +196,12 @@ namespace KinectWPFOpenCV
 
                         blobCount = 0;
 
+                        if (chkAutoMin.IsChecked == true)
+                            sliderMin.Value = depthFrame.MinDepth;
+
+                        if (chkAutoMax.IsChecked == true)
+                            sliderMax.Value = depthFrame.MaxDepth;
+
                         depthBmp = depthFrame.SliceDepthImage((int)sliderMin.Value, (int)sliderMax.Value);
 
                         Image<Bgr, Byte> openCVImg = new Image<Bgr, byte>(depthBmp.ToBitmap());
@@ -233,19 +248,22 @@ namespace KinectWPFOpenCV
                                 {
                                     double centroidX = contours.BoundingRectangle.Location.X + contours.BoundingRectangle.Width / 2;
                                     double centroidY = contours.BoundingRectangle.Location.Y + contours.BoundingRectangle.Height / 2;
+
+                                    double lineWidthFactor = Math.Sqrt(trackImg.Width * trackImg.Height / (sliderMaxSize.Value * sliderMaxSize.Value));
+
                                     //Contours
-                                    trackImg.Draw(contours, new Bgr(System.Drawing.Color.WhiteSmoke), 1);
+                                    trackImg.Draw(contours, new Bgr(System.Drawing.Color.WhiteSmoke), (int)Math.Ceiling(lineWidthFactor));
                                     //Centroid
-                                    trackImg.Draw(new Cross2DF(new PointF((float)centroidX, (float)centroidY), 10, 10), new Bgr(System.Drawing.Color.Yellow), 2);
+                                    trackImg.Draw(new Cross2DF(new PointF((float)centroidX, (float)centroidY), (int)Math.Ceiling(10 * lineWidthFactor), (int)Math.Ceiling(10 * lineWidthFactor)), new Bgr(System.Drawing.Color.Yellow), (int)Math.Ceiling(2 * lineWidthFactor));
                                     //BoundingRectangle
-                                    trackImg.Draw(contours.BoundingRectangle, new Bgr(System.Drawing.Color.Yellow), 2);
+                                    trackImg.Draw(contours.BoundingRectangle, new Bgr(System.Drawing.Color.Yellow), (int)Math.Ceiling(2 * lineWidthFactor));
                                     //BoundingRectangle Origin
-                                    trackImg.Draw(new Cross2DF(new PointF((float)contours.BoundingRectangle.Location.X, (float)contours.BoundingRectangle.Location.Y), 10, 10), new Bgr(System.Drawing.Color.Green), 2);
+                                    trackImg.Draw(new Cross2DF(new PointF((float)contours.BoundingRectangle.Location.X, (float)contours.BoundingRectangle.Location.Y), (int)Math.Ceiling(10 * lineWidthFactor), (int)Math.Ceiling(10 * lineWidthFactor)), new Bgr(System.Drawing.Color.Green), (int)Math.Ceiling(2 * lineWidthFactor));
                                     //MinAreaRect
                                     //MCvBox2D box = contours.GetMinAreaRect();
                                     //trackImg.Draw(box, new Bgr(System.Drawing.Color.Yellow), 2);
                                     //Create the font
-                                    MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1.0);
+                                    MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
                                     trackImg.Draw("id: " + blobCount.ToString(), ref f, new System.Drawing.Point((int)centroidX + 10, (int)centroidY + 5), new Bgr(System.Drawing.Color.Yellow));
 
                                     bool newPerson = false;
@@ -263,6 +281,7 @@ namespace KinectWPFOpenCV
                                     people[blobCount].boundingRectOriginY = (float)((double)contours.BoundingRectangle.Location.Y / (double)gray_image.Height);
                                     people[blobCount].centroidX = (float)(centroidX / (double)gray_image.Width);
                                     people[blobCount].centroidY = (float)(centroidY / (double)gray_image.Height);
+                                    people[blobCount].depth = (float)(depthFrame.GetRawPixelData()[(int)centroidX + (int)centroidY * depthFrame.Width].Depth / depthFrame.MaxDepth);
                                     if (historyFrameCount == 0)
                                     {
                                         if (peopleHistory.ContainsKey(blobCount))
@@ -306,8 +325,6 @@ namespace KinectWPFOpenCV
                             }
                         }
 
-                        latestGray = gray_image.Copy();
-
                         this.depthImg.Source = depthBmp;
                         if (this.radioDepth.IsChecked == true)
                             this.outImg.Source = depthBmp;
@@ -327,7 +344,6 @@ namespace KinectWPFOpenCV
                         btnAutoCapture.IsEnabled = !(backgroundValidation > 0);
                     }
                 }
-
 
                 if (colorFrame != null)
                 {
@@ -472,7 +488,6 @@ namespace KinectWPFOpenCV
                 }
         }
 
-
         #region Window Stuff
         void MainWindow_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -486,6 +501,8 @@ namespace KinectWPFOpenCV
             {
                 this.sensor.Stop();
             }
+            if (null != this.backgroundCaptureKey)
+                this.backgroundCaptureKey.Dispose();
         }
 
         private void CloseBtnClick(object sender, RoutedEventArgs e)
@@ -608,6 +625,30 @@ namespace KinectWPFOpenCV
         private void txtOscPort_TextChanged(object sender, TextChangedEventArgs e)
         {
             OscValidate(sender, e);
+        }
+
+        private void chkAutoMin_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sliderMin != null)
+                sliderMin.IsEnabled = false;
+        }
+
+        private void chkAutoMax_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sliderMax != null)
+                sliderMax.IsEnabled = false;
+        }
+
+        private void chkAutoMax_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (sliderMax != null)
+                sliderMax.IsEnabled = true;
+        }
+
+        private void chkAutoMin_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (sliderMax != null)
+                sliderMax.IsEnabled = true;
         }
 
         #endregion

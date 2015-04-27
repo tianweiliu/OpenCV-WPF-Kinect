@@ -12,5 +12,6 @@
 [assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("opencv_core2410.dll")]
 [assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("opencv_highgui2410.dll")]
 [assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("opencv_imgproc2410.dll")]
+[assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("writeablebitmapex.wpf.dll")]
 
 

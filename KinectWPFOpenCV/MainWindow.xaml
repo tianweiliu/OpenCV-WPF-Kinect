@@ -69,7 +69,7 @@
                     <RadioButton Name="radioBG" VerticalAlignment="Center" Margin="10 11 0 0" Checked="radioBG_Checked">
                         <TextBlock Text="Background" Margin="0 -14 0 0" Padding="10"/>
                     </RadioButton>
-                </StackPanel>                
+                </StackPanel>
                 <Image Margin="0,0,0,0" Name="bgImg" Width="160" Height="120" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Right" VerticalAlignment="Top" MouseDown="bgImg_MouseDown" />
                 <StackPanel Orientation="Horizontal">
                     <Button Margin="5 5 5 5" Name="btnAutoCapture" Width="45" Height="30" Content="Auto" Click="btnAutoCapture_Click" />
@@ -97,21 +97,27 @@
                     <CheckBox x:Name="chkFlipH" Content="Flip Horizontal" VerticalAlignment="Center" Margin="10" IsChecked="True" />
                     <CheckBox x:Name="chkFlipV" Content="Flip Vertical" VerticalAlignment="Center" Margin="10" />
                 </StackPanel>
-                <TextBlock Text="Min Distance" Padding="10"/>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Min Distance" Padding="10"/>
+                    <CheckBox x:Name="chkAutoMin" Content="Auto" VerticalAlignment="Center" Checked="chkAutoMin_Checked" Unchecked="chkAutoMin_Unchecked" IsChecked="True" />
+                </StackPanel>
                 <StackPanel  Orientation="Horizontal">
-                    <Slider Width="250"  Minimum="0" Value="0"  Maximum="3000" TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Margin="5"  x:Name="sliderMin" Padding="10"/>
+                    <Slider Width="250"  Minimum="0" Value="0"  Maximum="3000" TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Margin="5"  x:Name="sliderMin" Padding="10" IsEnabled="False"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderMin}" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <TextBlock Text="Max Distance" Padding="10"/>
                 <StackPanel Orientation="Horizontal">
-                    <Slider Width="250" Minimum="900" Value="6000" Maximum="6000" TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Margin="5" x:Name="sliderMax" Padding="10"/>
+                    <TextBlock Text="Max Distance" Padding="10"/>
+                    <CheckBox x:Name="chkAutoMax" Content="Auto" VerticalAlignment="Center" Checked="chkAutoMax_Checked" Unchecked="chkAutoMax_Unchecked" IsChecked="True" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Slider Width="250" Minimum="900" Value="6000" Maximum="6000" TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Margin="5" x:Name="sliderMax" Padding="10" IsEnabled="False"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderMax}" VerticalAlignment="Center" />
                 </StackPanel>
 
                 <TextBlock Text="Min Blob Size" Padding="10"/>
                 <StackPanel Orientation="Horizontal">
-                    <Slider Width="250" Minimum="1" Value="40" Maximum="50" Margin="5" x:Name="sliderMinSize"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
+                    <Slider Width="250" Minimum="1" Value="25" Maximum="50" Margin="5" x:Name="sliderMinSize"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderMinSize}" VerticalAlignment="Center" />
                 </StackPanel>
 
@@ -120,7 +126,7 @@
                     <Slider Width="250" Minimum="1" Value="555" Maximum="555" Margin="5" x:Name="sliderMaxSize"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderMaxSize}" VerticalAlignment="Center" />
                 </StackPanel>
-                
+
                 <!--
                 <TextBlock Text="Gamma Correction" Padding="10"/>
                 <StackPanel Orientation="Horizontal">
