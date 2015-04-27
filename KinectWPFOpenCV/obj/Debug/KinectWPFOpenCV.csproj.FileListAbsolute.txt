@@ -24,29 +24,3 @@ c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpe
 c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.exe
 c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.pdb
 c:\users\erik\documents\visual studio 2012\Projects\KinectWPFOpenCV\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.csprojResolveAssemblyReference.cache
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\KinectWPFOpenCV.exe.config
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\cudart32_65.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\opencv_core2410.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\opencv_highgui2410.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\opencv_imgproc2410.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\WriteableBitmapEx.Wpf.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\KinectWPFOpenCV.exe
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\KinectWPFOpenCV.pdb
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\Emgu.CV.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\Emgu.CV.UI.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\Emgu.Util.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\ZedGraph.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\Emgu.CV.xml
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\Emgu.CV.UI.xml
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Debug\Emgu.Util.xml
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\MainWindow.baml
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\App.baml
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\MainWindow.g.cs
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\App.g.cs
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV_Content.g.cs
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV_MarkupCompile.cache
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.g.resources
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.Properties.Resources.resources
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.csproj.GenerateResource.Cache
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.exe
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Debug\KinectWPFOpenCV.pdb
