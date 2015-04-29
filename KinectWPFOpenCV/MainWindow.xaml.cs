@@ -84,7 +84,6 @@ namespace KinectWPFOpenCV
             KeyboardHandler.keyboardEventHandler += AutoBackgroundCapture;
             this.WindowState = System.Windows.WindowState.Minimized;
             string autoLaunchPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "autoLaunch.lnk");
-            MessageBox.Show(autoLaunchPath);
             if (File.Exists(autoLaunchPath))
             {
                 Process proc = new Process();
