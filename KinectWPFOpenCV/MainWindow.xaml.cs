@@ -78,8 +78,9 @@ namespace KinectWPFOpenCV
         {
             KinectSensor.KinectSensors.StatusChanged += sensor_StatusChanged;
             FindSensor();
-            backgroundCaptureKey = new KeyboardHandler(this, Key.A);
+            backgroundCaptureKey = new KeyboardHandler(this, Key.F5);
             KeyboardHandler.keyboardEventHandler += AutoBackgroundCapture;
+            this.WindowState = System.Windows.WindowState.Minimized;
         }
 
         private void FindSensor()
