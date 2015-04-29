@@ -1,9 +1,9 @@
+C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\KinectWPFOpenCV.exe.config
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\cudart32_65.dll
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\opencv_core2410.dll
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\opencv_highgui2410.dll
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\opencv_imgproc2410.dll
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\WriteableBitmapEx.Wpf.dll
-C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\KinectWPFOpenCV.exe.config
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\KinectWPFOpenCV.exe
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\KinectWPFOpenCV.pdb
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\Emgu.CV.dll

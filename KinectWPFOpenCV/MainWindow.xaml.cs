@@ -24,6 +24,8 @@ using System.Net;
 using System.Collections;
 using GlobalKeyboardHook;
 using System.Windows.Interop;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace KinectWPFOpenCV
 {
@@ -81,6 +83,14 @@ namespace KinectWPFOpenCV
             backgroundCaptureKey = new KeyboardHandler(this, Key.F5);
             KeyboardHandler.keyboardEventHandler += AutoBackgroundCapture;
             this.WindowState = System.Windows.WindowState.Minimized;
+            string autoLaunchPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "autoLaunch.lnk");
+            MessageBox.Show(autoLaunchPath);
+            if (File.Exists(autoLaunchPath))
+            {
+                Process proc = new Process();
+                proc.StartInfo.FileName = autoLaunchPath;
+                proc.Start();
+            }
         }
 
         private void FindSensor()
