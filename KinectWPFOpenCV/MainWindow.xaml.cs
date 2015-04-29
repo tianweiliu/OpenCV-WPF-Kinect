@@ -349,7 +349,10 @@ namespace KinectWPFOpenCV
                         if (blobCount == 0)
                             backgroundValidation--;
                         else if (backgroundValidation > 0)
+                        {
+                            backgroundValidation = BackgroundValidationFrameCount;
                             CaptureBackground();
+                        }
 
                         btnAutoCapture.IsEnabled = !(backgroundValidation > 0);
                     }
