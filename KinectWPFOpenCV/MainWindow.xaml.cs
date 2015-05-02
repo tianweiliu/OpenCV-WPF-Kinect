@@ -65,6 +65,9 @@ namespace KinectWPFOpenCV
 
         //Global hotkey
         KeyboardHandler backgroundCaptureKey;
+        KeyboardHandler exitKey;
+
+        Process proc;
 
         public MainWindow()
         {
@@ -82,12 +85,17 @@ namespace KinectWPFOpenCV
             KinectSensor.KinectSensors.StatusChanged += sensor_StatusChanged;
             FindSensor();
             backgroundCaptureKey = new KeyboardHandler(this, Key.F5);
-            KeyboardHandler.keyboardEventHandler += AutoBackgroundCapture;
+            backgroundCaptureKey.keyboardEventHandler += AutoBackgroundCapture;
+            exitKey = new KeyboardHandler(this, Key.Escape);
+            exitKey.keyboardEventHandler += () =>
+            {
+                Application.Current.Shutdown();
+            };
             this.WindowState = System.Windows.WindowState.Minimized;
             string autoLaunchPath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "autoLaunch.lnk");
             if (File.Exists(autoLaunchPath))
             {
-                Process proc = new Process();
+                proc = new Process();
                 proc.StartInfo.FileName = autoLaunchPath;
                 proc.Start();
             }
@@ -580,12 +588,22 @@ namespace KinectWPFOpenCV
 
         void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            if (null != proc)
+            {
+                proc.CloseMainWindow();
+            }
+            if (null != udpWriter)
+            {
+                udpWriter.Close();
+            }
             if (null != this.sensor)
             {
                 this.sensor.Stop();
             }
             if (null != this.backgroundCaptureKey)
                 this.backgroundCaptureKey.Dispose();
+            if (null != this.exitKey)
+                this.exitKey.Dispose();
         }
 
         private void CloseBtnClick(object sender, RoutedEventArgs e)

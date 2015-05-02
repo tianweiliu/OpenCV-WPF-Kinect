@@ -10,7 +10,7 @@ namespace GlobalKeyboardHook
 {
     public class KeyboardHandler : IDisposable
     {
-        public static event Action keyboardEventHandler;
+        public event Action keyboardEventHandler;
         public const int WM_HOTKEY = 0x0312;
 
         [DllImport("user32.dll")]
