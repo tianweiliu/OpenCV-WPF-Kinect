@@ -55,12 +55,13 @@ namespace KinectWPFOpenCV
         OSCTransmitter udpWriter;
 
         //TSPS
-        List<int> peopleEntered = new List<int>();
-        Dictionary<int, Person> people = new Dictionary<int, Person>();
+        int _pid = 0;
+        List<int> peopleEntered = new List<int>(); // Collection of pids
+        Dictionary<int, Person> peopleLastFrame = new Dictionary<int, Person>(); // History of people in last frame, key is pid
 
         //Velocity calculation
         int historyFrameCount = 0;
-        Dictionary<int, PersonHistory> peopleHistory = new Dictionary<int, PersonHistory>();
+        Dictionary<int, PersonHistory> peopleHistory = new Dictionary<int, PersonHistory>(); // History of people in 10 frames before, key is pid
 
         //Global hotkey
         KeyboardHandler backgroundCaptureKey;
@@ -248,7 +249,9 @@ namespace KinectWPFOpenCV
                              Emgu.CV.CvEnum.RETR_TYPE.CV_RETR_EXTERNAL,
                              stor);
 
-                            List<int> peopleOnStage = new List<int>();
+                            Dictionary<int, Person> people = new Dictionary<int, Person>(); // blob of current frame, key is oid
+
+                            double lineWidthFactor = Math.Sqrt(trackImg.Width * trackImg.Height / (sliderMaxSize.Value * sliderMaxSize.Value));
 
                             for (int i = 0; contours != null; contours = contours.HNext)
                             {
@@ -258,8 +261,6 @@ namespace KinectWPFOpenCV
                                 {
                                     double centroidX = contours.BoundingRectangle.Location.X + contours.BoundingRectangle.Width / 2;
                                     double centroidY = contours.BoundingRectangle.Location.Y + contours.BoundingRectangle.Height / 2;
-
-                                    double lineWidthFactor = Math.Sqrt(trackImg.Width * trackImg.Height / (sliderMaxSize.Value * sliderMaxSize.Value));
 
                                     //Contours
                                     trackImg.Draw(contours, new Bgr(System.Drawing.Color.WhiteSmoke), (int)Math.Ceiling(lineWidthFactor));
@@ -274,17 +275,11 @@ namespace KinectWPFOpenCV
                                     //trackImg.Draw(box, new Bgr(System.Drawing.Color.Yellow), 2);
                                     //Create the font
                                     MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
-                                    trackImg.Draw("id: " + blobCount.ToString(), ref f, new System.Drawing.Point((int)centroidX + 10, (int)centroidY + 5), new Bgr(System.Drawing.Color.Yellow));
+                                    trackImg.Draw("oid: " + blobCount.ToString(), ref f, new System.Drawing.Point((int)centroidX + 10, (int)centroidY + 15), new Bgr(System.Drawing.Color.Yellow));
 
-                                    bool newPerson = false;
-                                    if (!people.ContainsKey(blobCount))
-                                    {
-                                        people.Add(blobCount, new Person());
-                                        people[blobCount].id = blobCount;
-                                        people[blobCount].oid = blobCount;
-                                        newPerson = true;
-                                    }
-
+                                    people.Add(blobCount, new Person());
+                                    people[blobCount].oid = blobCount;
+                                    people[blobCount].age = 0;
                                     people[blobCount].boundingRectSizeWidth = (float)((double)contours.BoundingRectangle.Width / (double)gray_image.Width);
                                     people[blobCount].boundingRectSizeHeight = (float)((double)contours.BoundingRectangle.Height / (double)gray_image.Height);
                                     people[blobCount].boundingRectOriginX = (float)((double)contours.BoundingRectangle.Location.X / (double)gray_image.Width);
@@ -292,34 +287,104 @@ namespace KinectWPFOpenCV
                                     people[blobCount].centroidX = (float)(centroidX / (double)gray_image.Width);
                                     people[blobCount].centroidY = (float)(centroidY / (double)gray_image.Height);
                                     people[blobCount].depth = (float)(depthFrame.GetRawPixelData()[(int)centroidX + (int)centroidY * depthFrame.Width].Depth / depthFrame.MaxDepth);
-                                    if (historyFrameCount == 0)
-                                    {
-                                        if (peopleHistory.ContainsKey(blobCount))
-                                        {
-                                            people[blobCount].velocityX = (float)Math.Abs((people[blobCount].centroidX - peopleHistory[blobCount].centroidX) / (DateTime.Now - peopleHistory[blobCount].timeStamp).TotalSeconds * (double)gray_image.Width);
-                                            people[blobCount].velocityY = (float)Math.Abs((people[blobCount].centroidY - peopleHistory[blobCount].centroidY) / (DateTime.Now - peopleHistory[blobCount].timeStamp).TotalSeconds * (double)gray_image.Height);
-                                        }
-                                        peopleHistory[blobCount] = new PersonHistory(people[blobCount]);
-                                    }
-
-                                    if (!newPerson)
-                                        PersonUpdate(people[blobCount]);
-                                    else
-                                        PersonEnter(people[blobCount]);
-
-                                    if (!peopleOnStage.Contains(blobCount))
-                                        peopleOnStage.Add(blobCount);
-
-                                    if (!peopleEntered.Contains(blobCount))
-                                        peopleEntered.Add(blobCount);
+                                    people[blobCount].velocityX = 0;
+                                    people[blobCount].velocityY = 0;
 
                                     blobCount++;
                                 }
                             }
 
-                            historyFrameCount++;
-                            if (historyFrameCount > 20)
-                                historyFrameCount = 0;
+                            List<int> peopleOnStage = new List<int>();
+
+                            List<int> pidRemaining = new List<int>();
+                            foreach (int personId in peopleEntered)
+                                pidRemaining.Add(personId);
+
+                            List<int> oidRemaining = new List<int>();
+                            for (int i = 0; i < blobCount; i++)
+                                oidRemaining.Add(i);
+
+                            while (pidRemaining.Count > 0 && oidRemaining.Count > 0)
+                            {
+
+                                double distance = -1;
+                                int pid = -1;
+                                int oid = -1;
+
+                                // Find the closest pair
+                                foreach (int i in oidRemaining)
+                                {
+                                    Vector centroid = new Vector(people[i].centroidX, people[i].centroidY);
+                                    foreach (int personId in pidRemaining)
+                                    {
+                                        Vector centroidLastFrame = new Vector(peopleLastFrame[personId].centroidX, peopleLastFrame[personId].centroidY);
+                                        if (distance == -1 || distance > (centroid - centroidLastFrame).Length)
+                                        {
+                                            distance = (centroid - centroidLastFrame).Length;
+                                            oid = i;
+                                            pid = personId;
+                                        }
+                                    }
+                                }
+
+                                if (pid != -1 && oid != -1)
+                                {
+                                    people[oid].id = pid;
+                                    if (peopleLastFrame[pid].age == int.MaxValue - 1) // Make sure that age does not overflow int, although it should never happen in real life.
+                                        peopleLastFrame[pid].age = 0;
+                                    people[oid].age = peopleLastFrame[pid].age + 1;
+                                    oidRemaining.Remove(oid);
+                                    pidRemaining.Remove(pid);
+
+                                    //Create the font
+                                    MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
+                                    //Display pid and age
+                                    trackImg.Draw("pid: " + people[oid].id.ToString(), ref f, new System.Drawing.Point((int)((double)people[oid].centroidX * (double)gray_image.Width) + 10, (int)((double)people[oid].centroidY * (double)gray_image.Height) + 5), new Bgr(System.Drawing.Color.Yellow));
+                                    trackImg.Draw("age: " + people[oid].age.ToString(), ref f, new System.Drawing.Point((int)((double)people[oid].centroidX * (double)gray_image.Width) + 10, (int)((double)people[oid].centroidY * (double)gray_image.Height) + 30), new Bgr(System.Drawing.Color.Yellow));
+
+                                    if (historyFrameCount == 0)
+                                    {
+                                        if (peopleHistory.ContainsKey(pid))
+                                        {
+                                            people[oid].velocityX = (float)Math.Abs((people[oid].centroidX - peopleHistory[pid].centroidX) / (DateTime.Now - peopleHistory[pid].timeStamp).TotalSeconds * (double)gray_image.Width);
+                                            people[oid].velocityY = (float)Math.Abs((people[oid].centroidY - peopleHistory[pid].centroidY) / (DateTime.Now - peopleHistory[pid].timeStamp).TotalSeconds * (double)gray_image.Height);
+                                        }
+                                        peopleHistory[pid] = new PersonHistory(people[oid]);
+                                    }
+
+                                    PersonUpdate(people[oid]);
+                                    peopleLastFrame[pid] = people[oid];
+                                    peopleOnStage.Add(pid);
+                                    people.Remove(oid);
+                                }
+                            }
+
+                            foreach (int i in oidRemaining)
+                            {
+                                people[i].id = ++_pid;
+                                people[i].age = 1;
+
+                                //Create the font
+                                MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
+                                //Display pid and age
+                                trackImg.Draw("pid: " + people[i].id.ToString(), ref f, new System.Drawing.Point((int)((double)people[i].centroidX * (double)gray_image.Width) + 10, (int)((double)people[i].centroidY * (double)gray_image.Height) + 5), new Bgr(System.Drawing.Color.Yellow));
+                                trackImg.Draw("age: " + people[i].age.ToString(), ref f, new System.Drawing.Point((int)((double)people[i].centroidX * (double)gray_image.Width) + 10, (int)((double)people[i].centroidY * (double)gray_image.Height) + 30), new Bgr(System.Drawing.Color.Yellow));
+
+                                if (historyFrameCount == 0)
+                                {
+                                    if (peopleHistory.ContainsKey(_pid))
+                                    {
+                                        people[i].velocityX = (float)Math.Abs((people[i].centroidX - peopleHistory[_pid].centroidX) / (DateTime.Now - peopleHistory[_pid].timeStamp).TotalSeconds * (double)gray_image.Width);
+                                        people[i].velocityY = (float)Math.Abs((people[i].centroidY - peopleHistory[_pid].centroidY) / (DateTime.Now - peopleHistory[_pid].timeStamp).TotalSeconds * (double)gray_image.Height);
+                                    }
+                                    peopleHistory[_pid] = new PersonHistory(people[i]);
+                                }
+
+                                PersonEnter(people[i]);
+                                peopleLastFrame[_pid] = people[i];
+                                peopleEntered.Add(_pid);
+                                peopleOnStage.Add(_pid);
+                            }
 
                             int[] peopleIds = peopleEntered.ToArray();
                             foreach (int personId in peopleIds)
@@ -327,12 +392,17 @@ namespace KinectWPFOpenCV
                                 if (!peopleOnStage.Contains(personId))
                                 {
                                     peopleEntered.Remove(personId);
-                                    PersonLeave(people[personId]);
-                                    people.Remove(personId);
+                                    PersonLeave(peopleLastFrame[personId]);
+                                    peopleLastFrame.Remove(personId);
                                     if (peopleHistory.ContainsKey(personId))
                                         peopleHistory.Remove(personId);
                                 }
                             }
+
+                            historyFrameCount++;
+                            if (historyFrameCount > 20)
+                                historyFrameCount = 0;
+
                         }
 
                         this.depthImg.Source = depthBmp;

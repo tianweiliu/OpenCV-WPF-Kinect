@@ -13,6 +13,7 @@ C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\Emgu.CV.xml
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\Emgu.CV.UI.xml
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\bin\Release\Emgu.Util.xml
+C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Release\KinectWPFOpenCV.csprojResolveAssemblyReference.cache
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Release\MainWindow.baml
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Release\App.baml
 C:\Users\tianwei1\Documents\GitHub\OpenCV-WPF-Kinect\KinectWPFOpenCV\obj\Release\MainWindow.g.cs
