@@ -590,7 +590,8 @@ namespace KinectWPFOpenCV
         {
             if (null != proc)
             {
-                proc.CloseMainWindow();
+                if (!proc.HasExited)
+                    proc.CloseMainWindow();
             }
             if (null != udpWriter)
             {
