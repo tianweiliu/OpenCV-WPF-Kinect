@@ -35,12 +35,22 @@ namespace KinectWPFOpenCV
     public partial class MainWindow : Window
     {
         KinectSensor sensor;
+        DepthFrameReader depthReader;
+        FrameDescription depthFrameDescription;
         WriteableBitmap depthBitmap;
+        byte[] depthPixels;
+
+        ColorFrameReader colorReader;
+        FrameDescription colorFrameDescription;
         WriteableBitmap colorBitmap;
-        DepthImagePixel[] depthPixels;
+
         Image<Bgr, Byte> background;
         Image<Bgr, Byte> latestDepth;
 
+        /// <summary>
+        /// Map depth range to byte range
+        /// </summary>
+        private const int MapDepthToByte = 8000 / 256;
         const int BackgroundValidationFrameCount = 60;
         int backgroundValidation = BackgroundValidationFrameCount;
 
@@ -82,7 +92,6 @@ namespace KinectWPFOpenCV
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            KinectSensor.KinectSensors.StatusChanged += sensor_StatusChanged;
             FindSensor();
             backgroundCaptureKey = new KeyboardHandler(this, Key.F5);
             backgroundCaptureKey.keyboardEventHandler += AutoBackgroundCapture;
@@ -103,14 +112,7 @@ namespace KinectWPFOpenCV
 
         private void FindSensor()
         {
-            foreach (var potentialSensor in KinectSensor.KinectSensors)
-            {
-                if (potentialSensor.Status == KinectStatus.Connected)
-                {
-                    this.sensor = potentialSensor;
-                    break;
-                }
-            }
+            this.sensor = KinectSensor.GetDefault();
 
             if (this.sensor != null)
             {
@@ -124,55 +126,43 @@ namespace KinectWPFOpenCV
             }
         }
 
-        private void sensor_StatusChanged(object sender, StatusChangedEventArgs e)
+        private void sensor_StatusChanged(object sender, IsAvailableChangedEventArgs e)
         {
-            this.txtInfo.Text = e.Status.ToString();
+            this.txtInfo.Text = e.IsAvailable ? "Running" : "Not Available";
 
-            switch (e.Status)
+            /*
+            if (e.IsAvailable)
             {
-                case KinectStatus.Connected:
-                    if (this.sensor == null)
-                    {
-                        this.sensor = e.Sensor;
-                        sensor_Initialize();
-                    }
-                    break;
-                case KinectStatus.Disconnected:
-                    if (this.sensor == e.Sensor)
-                    {
-                        sensor_Stop();
-                    }
-                    break;
-                case KinectStatus.NotReady:
-                    break;
-                case KinectStatus.NotPowered:
-                    if (this.sensor == e.Sensor)
-                    {
-                        sensor_Stop();
-                    }
-                    break;
-                default:
-                    break;
+                sensor_Initialize();
             }
+            else
+            {
+                sensor_Stop();
+            }
+            */
         }
 
         private void sensor_Initialize()
         {
             if (null != this.sensor)
             {
-                this.sensor.DepthStream.Enable(DepthImageFormat.Resolution320x240Fps30);
-                this.sensor.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
-                this.colorPixels = new byte[this.sensor.ColorStream.FramePixelDataLength];
-                this.depthPixels = new DepthImagePixel[this.sensor.DepthStream.FramePixelDataLength];
-                this.colorBitmap = new WriteableBitmap(this.sensor.ColorStream.FrameWidth, this.sensor.ColorStream.FrameHeight, 96.0, 96.0, PixelFormats.Bgr32, null);
-                this.depthBitmap = new WriteableBitmap(this.sensor.DepthStream.FrameWidth, this.sensor.DepthStream.FrameHeight, 96.0, 96.0, PixelFormats.Bgr32, null);
+                this.depthReader = this.sensor.DepthFrameSource.OpenReader();
+                this.depthFrameDescription = this.sensor.DepthFrameSource.FrameDescription;
+                this.depthPixels = new byte[this.depthFrameDescription.Width * this.depthFrameDescription.Height];
+                this.depthBitmap = new WriteableBitmap(this.depthFrameDescription.Width, this.depthFrameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
+
+                this.colorReader = this.sensor.ColorFrameSource.OpenReader();
+                this.colorFrameDescription = this.sensor.ColorFrameSource.FrameDescription;
+                this.colorPixels = new byte[this.colorFrameDescription.Width * this.colorFrameDescription.Height];
+                this.colorBitmap = new WriteableBitmap(this.colorFrameDescription.Width, this.colorFrameDescription.Height, 96.0, 96.0, PixelFormats.Bgr32, null);
                 this.colorImg.Source = this.colorBitmap;
 
-                this.sensor.AllFramesReady += this.sensor_AllFramesReady;
+                this.depthReader.FrameArrived += this.sensor_DepthFramesReady;
 
                 try
                 {
-                    this.sensor.Start();
+                    this.sensor.Open();
+                    this.sensor.IsAvailableChanged += sensor_StatusChanged;
                 }
                 catch (IOException)
                 {
@@ -188,8 +178,18 @@ namespace KinectWPFOpenCV
         {
             if (this.sensor != null)
             {
-                this.sensor.Stop();
+                this.sensor.Close();
                 this.sensor = null;
+            }
+            if (null != this.depthReader)
+            {
+                this.depthReader.Dispose();
+                this.depthReader = null;
+            }
+            if (null != this.colorReader)
+            {
+                this.colorReader.Dispose();
+                this.colorReader = null;
             }
             sensor_NotReady();
         }
@@ -200,254 +200,77 @@ namespace KinectWPFOpenCV
             this.txtError.Visibility = System.Windows.Visibility.Visible;
         }
 
-        private void sensor_AllFramesReady(object sender, AllFramesReadyEventArgs e)
+        /// <summary>
+        /// Handles the depth frame data arriving from the sensor
+        /// </summary>
+        /// <param name="sender">object sending the event</param>
+        /// <param name="e">event arguments</param>
+        private void sensor_DepthFramesReady(object sender, DepthFrameArrivedEventArgs e)
         {
-
-            BitmapSource depthBmp = null;
             blobCount = 0;
 
-            using (ColorImageFrame colorFrame = e.OpenColorImageFrame())
+            /*
+            using (ColorFrame colorFrame = e.FrameReference.AcquireFrame())
             {
-                using (DepthImageFrame depthFrame = e.OpenDepthImageFrame())
+            */
+            using (DepthFrame depthFrame = e.FrameReference.AcquireFrame())
+            {
+                if (depthFrame != null)
                 {
-                    if (depthFrame != null)
+
+                    if (chkAutoMin.IsChecked == true)
+                        sliderMin.Value = depthFrame.DepthMinReliableDistance;
+
+                    if (chkAutoMax.IsChecked == true)
+                        sliderMax.Value = depthFrame.DepthMaxReliableDistance;
+
+                    //depthBmp = depthFrame.SliceDepthImage((int)sliderMin.Value, (int)sliderMax.Value);
+
+                    bool depthFrameProcessed = false;
+
+                    // the fastest way to process the body index data is to directly access 
+                    // the underlying buffer
+                    using (Microsoft.Kinect.KinectBuffer depthBuffer = depthFrame.LockImageBuffer())
                     {
+                        // verify data and write the color data to the display bitmap
+                        if (((this.depthFrameDescription.Width * this.depthFrameDescription.Height) == (depthBuffer.Size / this.depthFrameDescription.BytesPerPixel)) &&
+                            (this.depthFrameDescription.Width == this.depthBitmap.PixelWidth) && (this.depthFrameDescription.Height == this.depthBitmap.PixelHeight))
+                        {
+                            // Note: In order to see the full range of depth (including the less reliable far field depth)
+                            // we are setting maxDepth to the extreme potential depth threshold
+                            ushort maxDepth = ushort.MaxValue;
 
+                            // If you wish to filter by reliable depth distance, uncomment the following line:
+                            //// maxDepth = depthFrame.DepthMaxReliableDistance
+
+                            this.ProcessDepthFrameData(depthBuffer.UnderlyingBuffer, depthBuffer.Size, depthFrame.DepthMinReliableDistance, maxDepth);
+                            depthFrameProcessed = true;
+                        }
+                    }
+
+                    if (depthFrameProcessed)
+                    {
+                        this.RenderDepthPixels();
                         blobCount = 0;
-
-                        if (chkAutoMin.IsChecked == true)
-                            sliderMin.Value = depthFrame.MinDepth;
-
-                        if (chkAutoMax.IsChecked == true)
-                            sliderMax.Value = depthFrame.MaxDepth;
-
-                        depthBmp = depthFrame.SliceDepthImage((int)sliderMin.Value, (int)sliderMax.Value);
-
-                        Image<Bgr, Byte> openCVImg = new Image<Bgr, byte>(depthBmp.ToBitmap());
-
-                        if (chkFlipH.IsChecked == true)
-                            openCVImg = openCVImg.Flip(FLIP.HORIZONTAL);
-
-                        if (chkFlipV.IsChecked == true)
-                            openCVImg = openCVImg.Flip(FLIP.VERTICAL);
-
-                        if (latestDepth != null)
-                        {
-                            latestDepth.Dispose();
-                        }
-                        latestDepth = openCVImg.Copy();
-
-                        if (background != null)
-                        {
-                            openCVImg -= background;
-                        }
-
-                        //openCVImg._GammaCorrect(sliderGamma.Value);
-                        //openCVImg = openCVImg.ThresholdToZero(new Bgr(255 - sliderThreshold.Value, 255 - sliderThreshold.Value, 255 - sliderThreshold.Value));
-                        openCVImg = openCVImg.ThresholdBinary(new Bgr(sliderThreshold.Value, sliderThreshold.Value, sliderThreshold.Value), new Bgr(255, 255, 255));
-
-                        Image<Bgr, Byte> trackImg = new Image<Bgr, byte>(depthBmp.PixelWidth, depthBmp.PixelHeight);
-                        Image<Gray, byte> gray_image = openCVImg.Convert<Gray, byte>();
-
-                        using (MemStorage stor = new MemStorage())
-                        {
-                            //Find contours with no holes try CV_RETR_EXTERNAL to find holes
-                            Contour<System.Drawing.Point> contours = gray_image.FindContours(
-                             Emgu.CV.CvEnum.CHAIN_APPROX_METHOD.CV_CHAIN_APPROX_SIMPLE,
-                             Emgu.CV.CvEnum.RETR_TYPE.CV_RETR_EXTERNAL,
-                             stor);
-
-                            Dictionary<int, Person> people = new Dictionary<int, Person>(); // blob of current frame, key is oid
-
-                            double lineWidthFactor = Math.Sqrt(trackImg.Width * trackImg.Height / (sliderMaxSize.Value * sliderMaxSize.Value));
-
-                            for (int i = 0; contours != null; contours = contours.HNext)
-                            {
-                                i++;
-
-                                if ((contours.Area > Math.Pow(sliderMinSize.Value, 2)) && (contours.Area < Math.Pow(sliderMaxSize.Value, 2)))
-                                {
-                                    double centroidX = contours.BoundingRectangle.Location.X + contours.BoundingRectangle.Width / 2;
-                                    double centroidY = contours.BoundingRectangle.Location.Y + contours.BoundingRectangle.Height / 2;
-
-                                    //Contours
-                                    trackImg.Draw(contours, new Bgr(System.Drawing.Color.WhiteSmoke), (int)Math.Ceiling(lineWidthFactor));
-                                    //Centroid
-                                    trackImg.Draw(new Cross2DF(new PointF((float)centroidX, (float)centroidY), (int)Math.Ceiling(10 * lineWidthFactor), (int)Math.Ceiling(10 * lineWidthFactor)), new Bgr(System.Drawing.Color.Yellow), (int)Math.Ceiling(2 * lineWidthFactor));
-                                    //BoundingRectangle
-                                    trackImg.Draw(contours.BoundingRectangle, new Bgr(System.Drawing.Color.Yellow), (int)Math.Ceiling(2 * lineWidthFactor));
-                                    //BoundingRectangle Origin
-                                    trackImg.Draw(new Cross2DF(new PointF((float)contours.BoundingRectangle.Location.X, (float)contours.BoundingRectangle.Location.Y), (int)Math.Ceiling(10 * lineWidthFactor), (int)Math.Ceiling(10 * lineWidthFactor)), new Bgr(System.Drawing.Color.Green), (int)Math.Ceiling(2 * lineWidthFactor));
-                                    //MinAreaRect
-                                    //MCvBox2D box = contours.GetMinAreaRect();
-                                    //trackImg.Draw(box, new Bgr(System.Drawing.Color.Yellow), 2);
-                                    //Create the font
-                                    MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
-                                    trackImg.Draw("oid: " + blobCount.ToString(), ref f, new System.Drawing.Point((int)centroidX + 10, (int)centroidY + 15), new Bgr(System.Drawing.Color.Yellow));
-
-                                    people.Add(blobCount, new Person());
-                                    people[blobCount].oid = blobCount;
-                                    people[blobCount].age = 0;
-                                    people[blobCount].boundingRectSizeWidth = (float)((double)contours.BoundingRectangle.Width / (double)gray_image.Width);
-                                    people[blobCount].boundingRectSizeHeight = (float)((double)contours.BoundingRectangle.Height / (double)gray_image.Height);
-                                    people[blobCount].boundingRectOriginX = (float)((double)contours.BoundingRectangle.Location.X / (double)gray_image.Width);
-                                    people[blobCount].boundingRectOriginY = (float)((double)contours.BoundingRectangle.Location.Y / (double)gray_image.Height);
-                                    people[blobCount].centroidX = (float)(centroidX / (double)gray_image.Width);
-                                    people[blobCount].centroidY = (float)(centroidY / (double)gray_image.Height);
-                                    people[blobCount].depth = (float)(depthFrame.GetRawPixelData()[(int)centroidX + (int)centroidY * depthFrame.Width].Depth / depthFrame.MaxDepth);
-                                    people[blobCount].velocityX = 0;
-                                    people[blobCount].velocityY = 0;
-
-                                    blobCount++;
-                                }
-                            }
-
-                            List<int> peopleOnStage = new List<int>();
-
-                            List<int> pidRemaining = new List<int>();
-                            foreach (int personId in peopleEntered)
-                                pidRemaining.Add(personId);
-
-                            List<int> oidRemaining = new List<int>();
-                            for (int i = 0; i < blobCount; i++)
-                                oidRemaining.Add(i);
-
-                            while (pidRemaining.Count > 0 && oidRemaining.Count > 0)
-                            {
-
-                                double distance = -1;
-                                int pid = -1;
-                                int oid = -1;
-
-                                // Find the closest pair
-                                foreach (int i in oidRemaining)
-                                {
-                                    Vector centroid = new Vector(people[i].centroidX, people[i].centroidY);
-                                    foreach (int personId in pidRemaining)
-                                    {
-                                        Vector centroidLastFrame = new Vector(peopleLastFrame[personId].centroidX, peopleLastFrame[personId].centroidY);
-                                        if (distance == -1 || distance > (centroid - centroidLastFrame).Length)
-                                        {
-                                            distance = (centroid - centroidLastFrame).Length;
-                                            oid = i;
-                                            pid = personId;
-                                        }
-                                    }
-                                }
-
-                                if (pid != -1 && oid != -1)
-                                {
-                                    people[oid].id = pid;
-                                    if (peopleLastFrame[pid].age == int.MaxValue - 1) // Make sure that age does not overflow int, although it should never happen in real life.
-                                        peopleLastFrame[pid].age = 0;
-                                    people[oid].age = peopleLastFrame[pid].age + 1;
-                                    oidRemaining.Remove(oid);
-                                    pidRemaining.Remove(pid);
-
-                                    //Create the font
-                                    MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
-                                    //Display pid and age
-                                    trackImg.Draw("pid: " + people[oid].id.ToString(), ref f, new System.Drawing.Point((int)((double)people[oid].centroidX * (double)gray_image.Width) + 10, (int)((double)people[oid].centroidY * (double)gray_image.Height) + 5), new Bgr(System.Drawing.Color.Yellow));
-                                    trackImg.Draw("age: " + people[oid].age.ToString(), ref f, new System.Drawing.Point((int)((double)people[oid].centroidX * (double)gray_image.Width) + 10, (int)((double)people[oid].centroidY * (double)gray_image.Height) + 30), new Bgr(System.Drawing.Color.Yellow));
-
-                                    if (historyFrameCount == 0)
-                                    {
-                                        if (peopleHistory.ContainsKey(pid))
-                                        {
-                                            people[oid].velocityX = (float)Math.Abs((people[oid].centroidX - peopleHistory[pid].centroidX) / (DateTime.Now - peopleHistory[pid].timeStamp).TotalSeconds * (double)gray_image.Width);
-                                            people[oid].velocityY = (float)Math.Abs((people[oid].centroidY - peopleHistory[pid].centroidY) / (DateTime.Now - peopleHistory[pid].timeStamp).TotalSeconds * (double)gray_image.Height);
-                                        }
-                                        peopleHistory[pid] = new PersonHistory(people[oid]);
-                                    }
-
-                                    PersonUpdate(people[oid]);
-                                    peopleLastFrame[pid] = people[oid];
-                                    peopleOnStage.Add(pid);
-                                    people.Remove(oid);
-                                }
-                            }
-
-                            foreach (int i in oidRemaining)
-                            {
-                                people[i].id = ++_pid;
-                                people[i].age = 1;
-
-                                //Create the font
-                                MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
-                                //Display pid and age
-                                trackImg.Draw("pid: " + people[i].id.ToString(), ref f, new System.Drawing.Point((int)((double)people[i].centroidX * (double)gray_image.Width) + 10, (int)((double)people[i].centroidY * (double)gray_image.Height) + 5), new Bgr(System.Drawing.Color.Yellow));
-                                trackImg.Draw("age: " + people[i].age.ToString(), ref f, new System.Drawing.Point((int)((double)people[i].centroidX * (double)gray_image.Width) + 10, (int)((double)people[i].centroidY * (double)gray_image.Height) + 30), new Bgr(System.Drawing.Color.Yellow));
-
-                                if (historyFrameCount == 0)
-                                {
-                                    if (peopleHistory.ContainsKey(_pid))
-                                    {
-                                        people[i].velocityX = (float)Math.Abs((people[i].centroidX - peopleHistory[_pid].centroidX) / (DateTime.Now - peopleHistory[_pid].timeStamp).TotalSeconds * (double)gray_image.Width);
-                                        people[i].velocityY = (float)Math.Abs((people[i].centroidY - peopleHistory[_pid].centroidY) / (DateTime.Now - peopleHistory[_pid].timeStamp).TotalSeconds * (double)gray_image.Height);
-                                    }
-                                    peopleHistory[_pid] = new PersonHistory(people[i]);
-                                }
-
-                                PersonEnter(people[i]);
-                                peopleLastFrame[_pid] = people[i];
-                                peopleEntered.Add(_pid);
-                                peopleOnStage.Add(_pid);
-                            }
-
-                            int[] peopleIds = peopleEntered.ToArray();
-                            foreach (int personId in peopleIds)
-                            {
-                                if (!peopleOnStage.Contains(personId))
-                                {
-                                    peopleEntered.Remove(personId);
-                                    PersonLeave(peopleLastFrame[personId]);
-                                    peopleLastFrame.Remove(personId);
-                                    if (peopleHistory.ContainsKey(personId))
-                                        peopleHistory.Remove(personId);
-                                }
-                            }
-
-                            historyFrameCount++;
-                            if (historyFrameCount > 20)
-                                historyFrameCount = 0;
-
-                        }
-
-                        this.depthImg.Source = depthBmp;
-                        if (this.radioDepth.IsChecked == true)
-                            this.outImg.Source = depthBmp;
-                        this.trackImg.Source = ImageHelpers.ToBitmapSource(trackImg);
-                        if (this.radioTrack.IsChecked == true)
-                            this.outImg.Source = this.trackImg.Source;
-                        this.diffImg.Source = ImageHelpers.ToBitmapSource(openCVImg);
-                        if (this.radioDiff.IsChecked == true)
-                            this.outImg.Source = this.diffImg.Source;
-                        txtBlobCount.Text = blobCount.ToString();
-
-                        if (blobCount == 0)
-                            backgroundValidation--;
-                        else if (backgroundValidation > 0)
-                        {
-                            backgroundValidation = BackgroundValidationFrameCount;
-                            CaptureBackground();
-                        }
-
-                        btnAutoCapture.IsEnabled = !(backgroundValidation > 0);
+                        BlobDetection();
                     }
                 }
-
-                if (colorFrame != null)
-                {
-
-                    colorFrame.CopyPixelDataTo(this.colorPixels);
-                    this.colorBitmap.WritePixels(
-                        new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight),
-                        this.colorPixels,
-                        this.colorBitmap.PixelWidth * sizeof(int),
-                        0);
-
-                }
             }
+
+            /*
+            if (colorFrame != null)
+            {
+
+                colorFrame.CopyPixelDataTo(this.colorPixels);
+                this.colorBitmap.WritePixels(
+                    new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight),
+                    this.colorPixels,
+                    this.colorBitmap.PixelWidth * sizeof(int),
+                    0);
+
+            }
+        }
+        */
 
             if (lastFrame != null)
             {
@@ -461,6 +284,259 @@ namespace KinectWPFOpenCV
                 }
             }
             lastFrame = DateTime.Now;
+        }
+
+        /// <summary>
+        /// Directly accesses the underlying image buffer of the DepthFrame to 
+        /// create a displayable bitmap.
+        /// This function requires the /unsafe compiler option as we make use of direct
+        /// access to the native memory pointed to by the depthFrameData pointer.
+        /// </summary>
+        /// <param name="depthFrameData">Pointer to the DepthFrame image data</param>
+        /// <param name="depthFrameDataSize">Size of the DepthFrame image data</param>
+        /// <param name="minDepth">The minimum reliable depth value for the frame</param>
+        /// <param name="maxDepth">The maximum reliable depth value for the frame</param>
+        private unsafe void ProcessDepthFrameData(IntPtr depthFrameData, uint depthFrameDataSize, ushort minDepth, ushort maxDepth)
+        {
+            // depth frame data is a 16 bit value
+            ushort* frameData = (ushort*)depthFrameData;
+
+            // convert depth to a visual representation
+            for (int i = 0; i < (int)(depthFrameDataSize / this.depthFrameDescription.BytesPerPixel); ++i)
+            {
+                // Get the depth for this pixel
+                ushort depth = frameData[i];
+
+                // To convert to a byte, we're mapping the depth value to the byte range.
+                // Values outside the reliable depth range are mapped to 0 (black).
+                this.depthPixels[i] = (byte)(depth >= minDepth && depth <= maxDepth ? (depth / MapDepthToByte) : 0);
+            }
+        }
+
+        /// <summary>
+        /// Renders color pixels into the writeableBitmap.
+        /// </summary>
+        private void RenderDepthPixels()
+        {
+            this.depthBitmap.WritePixels(
+                new Int32Rect(0, 0, this.depthBitmap.PixelWidth, this.depthBitmap.PixelHeight),
+                this.depthPixels,
+                this.depthBitmap.PixelWidth,
+                0);
+        }
+
+        void BlobDetection()
+        {
+            Image<Bgr, Byte> openCVImg = new Image<Bgr, byte>(this.depthBitmap.ToBitmap());
+
+            if (chkFlipH.IsChecked == true)
+                openCVImg = openCVImg.Flip(FLIP.HORIZONTAL);
+
+            if (chkFlipV.IsChecked == true)
+                openCVImg = openCVImg.Flip(FLIP.VERTICAL);
+
+            if (latestDepth != null)
+            {
+                latestDepth.Dispose();
+            }
+            latestDepth = openCVImg.Copy();
+
+            if (background != null)
+            {
+                openCVImg -= background;
+            }
+
+            //openCVImg._GammaCorrect(sliderGamma.Value);
+            //openCVImg = openCVImg.ThresholdToZero(new Bgr(255 - sliderThreshold.Value, 255 - sliderThreshold.Value, 255 - sliderThreshold.Value));
+            openCVImg = openCVImg.ThresholdBinary(new Bgr(sliderThreshold.Value, sliderThreshold.Value, sliderThreshold.Value), new Bgr(255, 255, 255));
+
+            Image<Bgr, Byte> trackImg = new Image<Bgr, byte>(this.depthBitmap.PixelWidth, this.depthBitmap.PixelHeight);
+            Image<Gray, byte> gray_image = openCVImg.Convert<Gray, byte>();
+
+            using (MemStorage stor = new MemStorage())
+            {
+                //Find contours with no holes try CV_RETR_EXTERNAL to find holes
+                Contour<System.Drawing.Point> contours = gray_image.FindContours(
+                 Emgu.CV.CvEnum.CHAIN_APPROX_METHOD.CV_CHAIN_APPROX_SIMPLE,
+                 Emgu.CV.CvEnum.RETR_TYPE.CV_RETR_EXTERNAL,
+                 stor);
+
+                Dictionary<int, Person> people = new Dictionary<int, Person>(); // blob of current frame, key is oid
+
+                double lineWidthFactor = Math.Sqrt(trackImg.Width * trackImg.Height / (sliderMaxSize.Value * sliderMaxSize.Value));
+
+                for (int i = 0; contours != null; contours = contours.HNext)
+                {
+                    i++;
+
+                    if ((contours.Area > Math.Pow(sliderMinSize.Value, 2)) && (contours.Area < Math.Pow(sliderMaxSize.Value, 2)))
+                    {
+                        double centroidX = contours.BoundingRectangle.Location.X + contours.BoundingRectangle.Width / 2;
+                        double centroidY = contours.BoundingRectangle.Location.Y + contours.BoundingRectangle.Height / 2;
+
+                        //Contours
+                        trackImg.Draw(contours, new Bgr(System.Drawing.Color.WhiteSmoke), (int)Math.Ceiling(lineWidthFactor));
+                        //Centroid
+                        trackImg.Draw(new Cross2DF(new System.Drawing.PointF((float)centroidX, (float)centroidY), (int)Math.Ceiling(10 * lineWidthFactor), (int)Math.Ceiling(10 * lineWidthFactor)), new Bgr(System.Drawing.Color.Yellow), (int)Math.Ceiling(2 * lineWidthFactor));
+                        //BoundingRectangle
+                        trackImg.Draw(contours.BoundingRectangle, new Bgr(System.Drawing.Color.Yellow), (int)Math.Ceiling(2 * lineWidthFactor));
+                        //BoundingRectangle Origin
+                        trackImg.Draw(new Cross2DF(new System.Drawing.PointF((float)contours.BoundingRectangle.Location.X, (float)contours.BoundingRectangle.Location.Y), (int)Math.Ceiling(10 * lineWidthFactor), (int)Math.Ceiling(10 * lineWidthFactor)), new Bgr(System.Drawing.Color.Green), (int)Math.Ceiling(2 * lineWidthFactor));
+                        //MinAreaRect
+                        //MCvBox2D box = contours.GetMinAreaRect();
+                        //trackImg.Draw(box, new Bgr(System.Drawing.Color.Yellow), 2);
+                        //Create the font
+                        MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
+                        trackImg.Draw("oid: " + blobCount.ToString(), ref f, new System.Drawing.Point((int)centroidX + 10, (int)centroidY + 15), new Bgr(System.Drawing.Color.Yellow));
+
+                        people.Add(blobCount, new Person());
+                        people[blobCount].oid = blobCount;
+                        people[blobCount].age = 0;
+                        people[blobCount].boundingRectSizeWidth = (float)((double)contours.BoundingRectangle.Width / (double)gray_image.Width);
+                        people[blobCount].boundingRectSizeHeight = (float)((double)contours.BoundingRectangle.Height / (double)gray_image.Height);
+                        people[blobCount].boundingRectOriginX = (float)((double)contours.BoundingRectangle.Location.X / (double)gray_image.Width);
+                        people[blobCount].boundingRectOriginY = (float)((double)contours.BoundingRectangle.Location.Y / (double)gray_image.Height);
+                        people[blobCount].centroidX = (float)(centroidX / (double)gray_image.Width);
+                        people[blobCount].centroidY = (float)(centroidY / (double)gray_image.Height);
+                        people[blobCount].depth = (float)(this.depthPixels[(int)centroidX + (int)centroidY * this.depthFrameDescription.Width]);
+                        people[blobCount].velocityX = 0;
+                        people[blobCount].velocityY = 0;
+
+                        blobCount++;
+                    }
+                }
+
+                List<int> peopleOnStage = new List<int>();
+
+                List<int> pidRemaining = new List<int>();
+                foreach (int personId in peopleEntered)
+                    pidRemaining.Add(personId);
+
+                List<int> oidRemaining = new List<int>();
+                for (int i = 0; i < blobCount; i++)
+                    oidRemaining.Add(i);
+
+                while (pidRemaining.Count > 0 && oidRemaining.Count > 0)
+                {
+
+                    double distance = -1;
+                    int pid = -1;
+                    int oid = -1;
+
+                    // Find the closest pair
+                    foreach (int i in oidRemaining)
+                    {
+                        Vector centroid = new Vector(people[i].centroidX, people[i].centroidY);
+                        foreach (int personId in pidRemaining)
+                        {
+                            Vector centroidLastFrame = new Vector(peopleLastFrame[personId].centroidX, peopleLastFrame[personId].centroidY);
+                            if (distance == -1 || distance > (centroid - centroidLastFrame).Length)
+                            {
+                                distance = (centroid - centroidLastFrame).Length;
+                                oid = i;
+                                pid = personId;
+                            }
+                        }
+                    }
+
+                    if (pid != -1 && oid != -1)
+                    {
+                        people[oid].id = pid;
+                        if (peopleLastFrame[pid].age == int.MaxValue - 1) // Make sure that age does not overflow int, although it should never happen in real life.
+                            peopleLastFrame[pid].age = 0;
+                        people[oid].age = peopleLastFrame[pid].age + 1;
+                        oidRemaining.Remove(oid);
+                        pidRemaining.Remove(pid);
+
+                        //Create the font
+                        MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
+                        //Display pid and age
+                        trackImg.Draw("pid: " + people[oid].id.ToString(), ref f, new System.Drawing.Point((int)((double)people[oid].centroidX * (double)gray_image.Width) + 10, (int)((double)people[oid].centroidY * (double)gray_image.Height) + 5), new Bgr(System.Drawing.Color.Yellow));
+                        trackImg.Draw("age: " + people[oid].age.ToString(), ref f, new System.Drawing.Point((int)((double)people[oid].centroidX * (double)gray_image.Width) + 10, (int)((double)people[oid].centroidY * (double)gray_image.Height) + 30), new Bgr(System.Drawing.Color.Yellow));
+
+                        if (historyFrameCount == 0)
+                        {
+                            if (peopleHistory.ContainsKey(pid))
+                            {
+                                people[oid].velocityX = (float)Math.Abs((people[oid].centroidX - peopleHistory[pid].centroidX) / (DateTime.Now - peopleHistory[pid].timeStamp).TotalSeconds * (double)gray_image.Width);
+                                people[oid].velocityY = (float)Math.Abs((people[oid].centroidY - peopleHistory[pid].centroidY) / (DateTime.Now - peopleHistory[pid].timeStamp).TotalSeconds * (double)gray_image.Height);
+                            }
+                            peopleHistory[pid] = new PersonHistory(people[oid]);
+                        }
+
+                        PersonUpdate(people[oid]);
+                        peopleLastFrame[pid] = people[oid];
+                        peopleOnStage.Add(pid);
+                        people.Remove(oid);
+                    }
+                }
+
+                foreach (int i in oidRemaining)
+                {
+                    people[i].id = ++_pid;
+                    people[i].age = 1;
+
+                    //Create the font
+                    MCvFont f = new MCvFont(FONT.CV_FONT_HERSHEY_COMPLEX_SMALL, lineWidthFactor, lineWidthFactor);
+                    //Display pid and age
+                    trackImg.Draw("pid: " + people[i].id.ToString(), ref f, new System.Drawing.Point((int)((double)people[i].centroidX * (double)gray_image.Width) + 10, (int)((double)people[i].centroidY * (double)gray_image.Height) + 5), new Bgr(System.Drawing.Color.Yellow));
+                    trackImg.Draw("age: " + people[i].age.ToString(), ref f, new System.Drawing.Point((int)((double)people[i].centroidX * (double)gray_image.Width) + 10, (int)((double)people[i].centroidY * (double)gray_image.Height) + 30), new Bgr(System.Drawing.Color.Yellow));
+
+                    if (historyFrameCount == 0)
+                    {
+                        if (peopleHistory.ContainsKey(_pid))
+                        {
+                            people[i].velocityX = (float)Math.Abs((people[i].centroidX - peopleHistory[_pid].centroidX) / (DateTime.Now - peopleHistory[_pid].timeStamp).TotalSeconds * (double)gray_image.Width);
+                            people[i].velocityY = (float)Math.Abs((people[i].centroidY - peopleHistory[_pid].centroidY) / (DateTime.Now - peopleHistory[_pid].timeStamp).TotalSeconds * (double)gray_image.Height);
+                        }
+                        peopleHistory[_pid] = new PersonHistory(people[i]);
+                    }
+
+                    PersonEnter(people[i]);
+                    peopleLastFrame[_pid] = people[i];
+                    peopleEntered.Add(_pid);
+                    peopleOnStage.Add(_pid);
+                }
+
+                int[] peopleIds = peopleEntered.ToArray();
+                foreach (int personId in peopleIds)
+                {
+                    if (!peopleOnStage.Contains(personId))
+                    {
+                        peopleEntered.Remove(personId);
+                        PersonLeave(peopleLastFrame[personId]);
+                        peopleLastFrame.Remove(personId);
+                        if (peopleHistory.ContainsKey(personId))
+                            peopleHistory.Remove(personId);
+                    }
+                }
+
+                historyFrameCount++;
+                if (historyFrameCount > 20)
+                    historyFrameCount = 0;
+
+            }
+
+            this.depthImg.Source = this.depthBitmap;
+            if (this.radioDepth.IsChecked == true)
+                this.outImg.Source = this.depthBitmap;
+            this.trackImg.Source = ImageHelpers.ToBitmapSource(trackImg);
+            if (this.radioTrack.IsChecked == true)
+                this.outImg.Source = this.trackImg.Source;
+            this.diffImg.Source = ImageHelpers.ToBitmapSource(openCVImg);
+            if (this.radioDiff.IsChecked == true)
+                this.outImg.Source = this.diffImg.Source;
+            txtBlobCount.Text = blobCount.ToString();
+
+            if (blobCount == 0)
+                backgroundValidation--;
+            else if (backgroundValidation > 0)
+            {
+                backgroundValidation = BackgroundValidationFrameCount;
+                CaptureBackground();
+            }
+
+            btnAutoCapture.IsEnabled = !(backgroundValidation > 0);
         }
 
         ArrayList PersonToArgs(Person person)
@@ -599,7 +675,17 @@ namespace KinectWPFOpenCV
             }
             if (null != this.sensor)
             {
-                this.sensor.Stop();
+                this.sensor.Close();
+            }
+            if (null != this.depthReader)
+            {
+                this.depthReader.Dispose();
+                this.depthReader = null;
+            }
+            if (null != this.colorReader)
+            {
+                this.colorReader.Dispose();
+                this.colorReader = null;
             }
             if (null != this.backgroundCaptureKey)
                 this.backgroundCaptureKey.Dispose();

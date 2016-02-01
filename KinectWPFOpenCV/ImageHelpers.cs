@@ -18,6 +18,7 @@ namespace KinectWPFOpenCV
         //private const int MinDepthDistance = 850;
         //private const int MaxDepthDistanceOffset = 3150;
 
+        /*
         public static BitmapSource SliceDepthImage(this DepthImageFrame image, int min = 20, int max = 1000)
         {
             int width = image.Width;
@@ -55,6 +56,7 @@ namespace KinectWPFOpenCV
 
             return BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, width * 4);
         }
+        */
 
         public static byte CalculateIntensityFromDistance(int distance, int min, int max)
         {
