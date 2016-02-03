@@ -117,7 +117,7 @@
 
                 <TextBlock Text="Min Blob Size" Padding="10"/>
                 <StackPanel Orientation="Horizontal">
-                    <Slider Width="250" Minimum="1" Value="25" Maximum="50" Margin="5" x:Name="sliderMinSize"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
+                    <Slider Width="250" Minimum="1" Value="25" Maximum="100" Margin="5" x:Name="sliderMinSize"  TickFrequency="1" IsSnapToTickEnabled="True" Interval="1" Padding="10"/>
                     <TextBlock Text="{Binding Value, ElementName=sliderMinSize}" VerticalAlignment="Center" />
                 </StackPanel>
 

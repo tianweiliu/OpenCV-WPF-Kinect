@@ -52,12 +52,15 @@ namespace KinectWPFOpenCV
         /// </summary>
         private const int MapDepthToByte = 8000 / 256;
         const int BackgroundValidationFrameCount = 60;
+        const int BackgroundOverlayFrameCount = 2;
+        const double BackgroundOverlayFactor = 0.1;
         int backgroundValidation = BackgroundValidationFrameCount;
 
         byte[] colorPixels;
 
         int blobCount = 0;
         int frameCounter = 0;
+        int bgFrameCounter = 0;
         double deltaTime = 0;
         DateTime lastFrame;
 
@@ -151,13 +154,15 @@ namespace KinectWPFOpenCV
                 this.depthPixels = new byte[this.depthFrameDescription.Width * this.depthFrameDescription.Height];
                 this.depthBitmap = new WriteableBitmap(this.depthFrameDescription.Width, this.depthFrameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
 
+                this.depthReader.FrameArrived += this.sensor_DepthFramesReady;
+
                 this.colorReader = this.sensor.ColorFrameSource.OpenReader();
                 this.colorFrameDescription = this.sensor.ColorFrameSource.FrameDescription;
                 this.colorPixels = new byte[this.colorFrameDescription.Width * this.colorFrameDescription.Height];
                 this.colorBitmap = new WriteableBitmap(this.colorFrameDescription.Width, this.colorFrameDescription.Height, 96.0, 96.0, PixelFormats.Bgr32, null);
                 this.colorImg.Source = this.colorBitmap;
 
-                this.depthReader.FrameArrived += this.sensor_DepthFramesReady;
+                this.colorReader.FrameArrived += this.Reader_ColorFrameArrived;
 
                 try
                 {
@@ -201,18 +206,47 @@ namespace KinectWPFOpenCV
         }
 
         /// <summary>
+        /// Handles the color frame data arriving from the sensor
+        /// </summary>
+        /// <param name="sender">object sending the event</param>
+        /// <param name="e">event arguments</param>
+        private void Reader_ColorFrameArrived(object sender, ColorFrameArrivedEventArgs e)
+        {
+            // ColorFrame is IDisposable
+            using (ColorFrame colorFrame = e.FrameReference.AcquireFrame())
+            {
+                if (colorFrame != null)
+                {
+                    FrameDescription colorFrameDescription = colorFrame.FrameDescription;
+
+                    using (KinectBuffer colorBuffer = colorFrame.LockRawImageBuffer())
+                    {
+                        this.colorBitmap.Lock();
+
+                        // verify data and write the new color frame data to the display bitmap
+                        if ((colorFrameDescription.Width == this.colorBitmap.PixelWidth) && (colorFrameDescription.Height == this.colorBitmap.PixelHeight))
+                        {
+                            colorFrame.CopyConvertedFrameDataToIntPtr(
+                                this.colorBitmap.BackBuffer,
+                                (uint)(colorFrameDescription.Width * colorFrameDescription.Height * 4),
+                                ColorImageFormat.Bgra);
+
+                            this.colorBitmap.AddDirtyRect(new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight));
+                        }
+
+                        this.colorBitmap.Unlock();
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Handles the depth frame data arriving from the sensor
         /// </summary>
         /// <param name="sender">object sending the event</param>
         /// <param name="e">event arguments</param>
         private void sensor_DepthFramesReady(object sender, DepthFrameArrivedEventArgs e)
         {
-            blobCount = 0;
-
-            /*
-            using (ColorFrame colorFrame = e.FrameReference.AcquireFrame())
-            {
-            */
             using (DepthFrame depthFrame = e.FrameReference.AcquireFrame())
             {
                 if (depthFrame != null)
@@ -223,8 +257,6 @@ namespace KinectWPFOpenCV
 
                     if (chkAutoMax.IsChecked == true)
                         sliderMax.Value = depthFrame.DepthMaxReliableDistance;
-
-                    //depthBmp = depthFrame.SliceDepthImage((int)sliderMin.Value, (int)sliderMax.Value);
 
                     bool depthFrameProcessed = false;
 
@@ -256,21 +288,6 @@ namespace KinectWPFOpenCV
                     }
                 }
             }
-
-            /*
-            if (colorFrame != null)
-            {
-
-                colorFrame.CopyPixelDataTo(this.colorPixels);
-                this.colorBitmap.WritePixels(
-                    new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight),
-                    this.colorPixels,
-                    this.colorBitmap.PixelWidth * sizeof(int),
-                    0);
-
-            }
-        }
-        */
 
             if (lastFrame != null)
             {
@@ -344,6 +361,12 @@ namespace KinectWPFOpenCV
             if (background != null)
             {
                 openCVImg -= background;
+                bgFrameCounter++;
+                if (bgFrameCounter >= BackgroundOverlayFrameCount)
+                {
+                    //background = background.AddWeighted(latestDepth, 1.0 - BackgroundOverlayFactor, BackgroundOverlayFactor, 0.0);
+                    bgFrameCounter = 0;
+                }
             }
 
             //openCVImg._GammaCorrect(sliderGamma.Value);
@@ -526,6 +549,12 @@ namespace KinectWPFOpenCV
             this.diffImg.Source = ImageHelpers.ToBitmapSource(openCVImg);
             if (this.radioDiff.IsChecked == true)
                 this.outImg.Source = this.diffImg.Source;
+            if (background != null)
+            {
+                this.bgImg.Source = ImageHelpers.ToBitmapSource(background);
+                if (this.radioBG.IsChecked == true)
+                    this.outImg.Source = this.bgImg.Source;
+            }
             txtBlobCount.Text = blobCount.ToString();
 
             if (blobCount == 0)
