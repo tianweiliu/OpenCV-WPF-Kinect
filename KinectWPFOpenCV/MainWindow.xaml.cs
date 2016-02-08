@@ -749,8 +749,8 @@ namespace KinectWPFOpenCV
 
         private void chkAutoMin_Unchecked(object sender, RoutedEventArgs e)
         {
-            if (sliderMax != null)
-                sliderMax.IsEnabled = true;
+            if (sliderMin != null)
+                sliderMin.IsEnabled = true;
         }
 
         #endregion
