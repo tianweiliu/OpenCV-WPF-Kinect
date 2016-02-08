@@ -13,7 +13,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Drawing;
-using Microsoft.Kinect;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
@@ -26,6 +25,7 @@ using GlobalKeyboardHook;
 using System.Windows.Interop;
 using System.Reflection;
 using System.Diagnostics;
+using raw_streams.cs;
 
 namespace KinectWPFOpenCV
 {
@@ -34,35 +34,32 @@ namespace KinectWPFOpenCV
     /// </summary>
     public partial class MainWindow : Window
     {
-        KinectSensor sensor;
-        DepthFrameReader depthReader;
-        FrameDescription depthFrameDescription;
-        WriteableBitmap depthBitmap;
-        byte[] depthPixels;
+        PXCMSession session;
+        private List<PXCMDevice> devices = new List<PXCMDevice>();
+        //private Dictionary<string, int> devices_iuid = new Dictionary<string, int>();
+        private List<PXCMCapture.VideoStream.ProfileInfo> colorProfiles = new List<PXCMCapture.VideoStream.ProfileInfo>();
+        private List<PXCMCapture.VideoStream.ProfileInfo> depthProfiles = new List<PXCMCapture.VideoStream.ProfileInfo>();
 
-        ColorFrameReader colorReader;
-        FrameDescription colorFrameDescription;
-        WriteableBitmap colorBitmap;
+        BitmapSource depthBitmap;
+        byte[] depthPixels;
+        int width;
+        BitmapSource colorBitmap;
 
         Image<Bgr, Byte> background;
         Image<Bgr, Byte> latestDepth;
 
-        /// <summary>
-        /// Map depth range to byte range
-        /// </summary>
-        private const int MapDepthToByte = 8000 / 256;
         const int BackgroundValidationFrameCount = 60;
         const int BackgroundOverlayFrameCount = 2;
         const double BackgroundOverlayFactor = 0.1;
         int backgroundValidation = BackgroundValidationFrameCount;
-
-        byte[] colorPixels;
 
         int blobCount = 0;
         int frameCounter = 0;
         int bgFrameCounter = 0;
         double deltaTime = 0;
         DateTime lastFrame;
+
+        private volatile bool stop = false;
 
         //Osc
         OSCTransmitter udpWriter;
@@ -115,9 +112,9 @@ namespace KinectWPFOpenCV
 
         private void FindSensor()
         {
-            this.sensor = KinectSensor.GetDefault();
-
-            if (this.sensor != null)
+            this.session = null;
+            pxcmStatus sts = PXCMSession.CreateInstance(out session);
+            if (sts >= pxcmStatus.PXCM_STATUS_NO_ERROR)
             {
                 txtInfo.Text = "Connected";
                 sensor_Initialize();
@@ -129,217 +126,231 @@ namespace KinectWPFOpenCV
             }
         }
 
-        private void sensor_StatusChanged(object sender, IsAvailableChangedEventArgs e)
+        delegate void StatusChanged(object sender, string e);
+        public void sensor_StatusChanged(object sender, string e)
         {
-            this.txtInfo.Text = e.IsAvailable ? "Running" : "Not Available";
+            StatusChanged d = new StatusChanged(OnStatusChanged);
+            Dispatcher.Invoke(d, new Object[] { sender, e });
+        }
 
-            /*
-            if (e.IsAvailable)
-            {
-                sensor_Initialize();
-            }
-            else
-            {
-                sensor_Stop();
-            }
-            */
+        private void OnStatusChanged(object sender, string e)
+        {
+            this.txtInfo.Text = e;
         }
 
         private void sensor_Initialize()
         {
-            if (null != this.sensor)
+            if (null != this.session)
             {
-                this.depthReader = this.sensor.DepthFrameSource.OpenReader();
-                this.depthFrameDescription = this.sensor.DepthFrameSource.FrameDescription;
-                this.depthPixels = new byte[this.depthFrameDescription.Width * this.depthFrameDescription.Height];
-                this.depthBitmap = new WriteableBitmap(this.depthFrameDescription.Width, this.depthFrameDescription.Height, 96.0, 96.0, PixelFormats.Gray8, null);
-
-                this.depthReader.FrameArrived += this.sensor_DepthFramesReady;
-
-                this.colorReader = this.sensor.ColorFrameSource.OpenReader();
-                this.colorFrameDescription = this.sensor.ColorFrameSource.FrameDescription;
-                this.colorPixels = new byte[this.colorFrameDescription.Width * this.colorFrameDescription.Height];
-                this.colorBitmap = new WriteableBitmap(this.colorFrameDescription.Width, this.colorFrameDescription.Height, 96.0, 96.0, PixelFormats.Bgr32, null);
-                this.colorImg.Source = this.colorBitmap;
-
-                this.colorReader.FrameArrived += this.Reader_ColorFrameArrived;
-
-                try
-                {
-                    this.sensor.Open();
-                    this.sensor.IsAvailableChanged += sensor_StatusChanged;
-                }
-                catch (IOException)
-                {
-                    this.sensor = null;
-                }
+                PopulateDeviceMenu();
+                System.Threading.Thread thread = new System.Threading.Thread(DoRendering);
+                thread.Start();
+                System.Threading.Thread.Sleep(5);
+                //this.colorImg.Source = this.colorBitmap;
             }
             backgroundValidation = BackgroundValidationFrameCount;
             this.outputViewbox.Visibility = System.Windows.Visibility.Visible;
             this.txtError.Visibility = System.Windows.Visibility.Hidden;
         }
 
-        private void sensor_Stop()
+        private void PopulateDeviceMenu()
         {
-            if (this.sensor != null)
+            PXCMSession.ImplDesc desc = new PXCMSession.ImplDesc();
+            desc.group = PXCMSession.ImplGroup.IMPL_GROUP_SENSOR;
+            desc.subgroup = PXCMSession.ImplSubgroup.IMPL_SUBGROUP_VIDEO_CAPTURE;
+
+            devices.Clear();
+            //DeviceMenu.DropDownItems.Clear();
+            for (uint i = 0; ; i++)
             {
-                this.sensor.Close();
-                this.sensor = null;
+                PXCMSession.ImplDesc desc1;
+                if (session.QueryImpl(ref desc, i, out desc1) < pxcmStatus.PXCM_STATUS_NO_ERROR) break;
+                PXCMCapture capture;
+                if (session.CreateImpl<PXCMCapture>(ref desc1, PXCMCapture.CUID, out capture) < pxcmStatus.PXCM_STATUS_NO_ERROR) continue;
+                for (uint j = 0; ; j++)
+                {
+                    PXCMCapture.DeviceInfo dinfo;
+                    if (capture.QueryDevice(j, out dinfo) < pxcmStatus.PXCM_STATUS_NO_ERROR) break;
+
+                    devices.Add(new PXCMDevice(dinfo, desc1.iuid));
+                    //ToolStripMenuItem sm1 = new ToolStripMenuItem(dinfo.name.get(), null, new EventHandler(Device_Item_Click));
+                    //devices[sm1] = dinfo;
+                    //devices_iuid[sm1] = desc1.iuid;
+                    //DeviceMenu.DropDownItems.Add(sm1);
+                }
+                capture.Dispose();
             }
-            if (null != this.depthReader)
+            /*
+            if (DeviceMenu.DropDownItems.Count > 0)
+                (DeviceMenu.DropDownItems[0] as ToolStripMenuItem).Checked = true;
+                */
+            if (devices.Count > 0)
+                PopulateColorDepthMenus(devices[0]);
+        }
+
+        private void PopulateColorDepthMenus(PXCMDevice selectedDevice)
+        {
+            PXCMSession.ImplDesc desc = new PXCMSession.ImplDesc();
+            desc.group = PXCMSession.ImplGroup.IMPL_GROUP_SENSOR;
+            desc.subgroup = PXCMSession.ImplSubgroup.IMPL_SUBGROUP_VIDEO_CAPTURE;
+            desc.iuid = selectedDevice.iuid;
+            desc.cuids[0] = PXCMCapture.CUID;
+
+            colorProfiles.Clear();
+            depthProfiles.Clear();
+            //ColorMenu.DropDownItems.Clear();
+            //DepthMenu.DropDownItems.Clear();
+            PXCMCapture capture;
+            if (session.CreateImpl<PXCMCapture>(ref desc, PXCMCapture.CUID, out capture) >= pxcmStatus.PXCM_STATUS_NO_ERROR)
             {
-                this.depthReader.Dispose();
-                this.depthReader = null;
+                PXCMCapture.Device device;
+                if (capture.CreateDevice(selectedDevice.device.didx, out device) >= pxcmStatus.PXCM_STATUS_NO_ERROR)
+                {
+                    bool cpopulated = false, dpopulated = false;
+                    for (uint s = 0; ; s++)
+                    {
+                        PXCMCapture.Device.StreamInfo sinfo;
+                        if (device.QueryStream(s, out sinfo) < pxcmStatus.PXCM_STATUS_NO_ERROR) break;
+                        if (sinfo.cuid != PXCMCapture.VideoStream.CUID) continue;
+
+                        if (((int)sinfo.imageType & (int)PXCMImage.ImageType.IMAGE_TYPE_COLOR) != 0 && !cpopulated)
+                        {
+                            PXCMCapture.VideoStream stream;
+                            if (device.CreateStream<PXCMCapture.VideoStream>(s, PXCMCapture.VideoStream.CUID, out stream) >= pxcmStatus.PXCM_STATUS_NO_ERROR)
+                            {
+                                for (uint p = 0; ; p++)
+                                {
+                                    PXCMCapture.VideoStream.ProfileInfo pinfo;
+                                    if (stream.QueryProfile(p, out pinfo) < pxcmStatus.PXCM_STATUS_NO_ERROR) break;
+
+                                    //ToolStripMenuItem sm1 = new ToolStripMenuItem(ProfileToString(pinfo), null, new EventHandler(Color_Item_Click));
+                                    colorProfiles.Add(pinfo);
+                                    //ColorMenu.DropDownItems.Add(sm1);
+                                    cpopulated = true;
+                                }
+                                stream.Dispose();
+                            }
+                        }
+                        if (((int)sinfo.imageType & (int)PXCMImage.ImageType.IMAGE_TYPE_DEPTH) != 0 && !dpopulated)
+                        {
+                            PXCMCapture.VideoStream stream;
+                            if (device.CreateStream<PXCMCapture.VideoStream>(s, PXCMCapture.VideoStream.CUID, out stream) >= pxcmStatus.PXCM_STATUS_NO_ERROR)
+                            {
+                                for (uint p = 0; ; p++)
+                                {
+                                    PXCMCapture.VideoStream.ProfileInfo pinfo;
+                                    if (stream.QueryProfile(p, out pinfo) < pxcmStatus.PXCM_STATUS_NO_ERROR) break;
+
+                                    //ToolStripMenuItem sm1 = new ToolStripMenuItem(ProfileToString(pinfo), null, new EventHandler(Depth_Item_Click));
+                                    depthProfiles.Add(pinfo);
+                                    //DepthMenu.DropDownItems.Add(sm1);
+                                    dpopulated = true;
+                                }
+                                stream.Dispose();
+                            }
+                        }
+                    }
+                    device.Dispose();
+                }
+                capture.Dispose();
             }
-            if (null != this.colorReader)
+            //ColorNone = new ToolStripMenuItem("None", null, new EventHandler(Color_Item_Click));
+            //profiles[ColorNone] = new PXCMCapture.VideoStream.ProfileInfo();
+            //ColorMenu.DropDownItems.Add(ColorNone);
+            //DepthNone = new ToolStripMenuItem("None", null, new EventHandler(Depth_Item_Click));
+            //profiles[DepthNone] = new PXCMCapture.VideoStream.ProfileInfo();
+            //DepthMenu.DropDownItems.Add(DepthNone);
+            //(ColorMenu.DropDownItems[0] as ToolStripMenuItem).Checked = true;
+            //(DepthMenu.DropDownItems[0] as ToolStripMenuItem).Checked = true;
+
+            //CheckSelection();
+        }
+
+        private void DoRendering()
+        {
+            RenderStreams rs = new RenderStreams();
+            rs.RunColorDepthAsync(this.devices[0], this.colorProfiles[0], this.depthProfiles[0], this);
+        }
+
+        private string ProfileToString(PXCMCapture.VideoStream.ProfileInfo pinfo)
+        {
+            string line = pinfo.imageInfo.format.ToString().Substring(13) + " " + pinfo.imageInfo.width + "x" + pinfo.imageInfo.height + " ";
+            if (pinfo.frameRateMin.denominator != 0 && pinfo.frameRateMax.denominator != 0)
             {
-                this.colorReader.Dispose();
-                this.colorReader = null;
+                line += (float)pinfo.frameRateMin.numerator / pinfo.frameRateMin.denominator + "-" +
+                      (float)pinfo.frameRateMax.numerator / pinfo.frameRateMax.denominator;
             }
-            sensor_NotReady();
+            else
+            {
+                PXCMRatioU32 fps = (pinfo.frameRateMin.denominator != 0) ? pinfo.frameRateMin : pinfo.frameRateMax;
+                line += (float)fps.numerator / fps.denominator;
+            }
+            return line;
+        }
+
+        public bool GetStopState()
+        {
+            return stop;
+        }
+
+        public bool GetDepthRawState()
+        {
+            return false;
+        }
+
+        public bool GetColorState()
+        {
+            return false;
+        }
+
+        public bool GetDepthState()
+        {
+            return true;
+        }
+
+        delegate void BitmapReadyCallback(int index, int width, int height, byte[] pixels);
+        public void SetBitmap(int index, int width, int height, byte[] pixels)
+        {
+            BitmapReadyCallback d = new BitmapReadyCallback(OnBitmapReady);
+            Dispatcher.Invoke(d, new Object[] { index, width, height, pixels });
+        }
+
+        private void OnBitmapReady(int index, int width, int height, byte[] pixels)
+        {
+            switch (index)
+            {
+                case 0:
+                    this.depthBitmap = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, width * 4);
+                    this.depthPixels = pixels;
+                    this.width = width;
+                    blobCount = 0;
+                    BlobDetection();
+                    if (lastFrame != null)
+                    {
+                        frameCounter++;
+                        deltaTime += (DateTime.Now - lastFrame).TotalSeconds;
+                        if (deltaTime >= 1)
+                        {
+                            txtFPS.Text = frameCounter.ToString() + " FPS";
+                            deltaTime = 0;
+                            frameCounter = 0;
+                        }
+                    }
+                    lastFrame = DateTime.Now;
+                    break;
+                case 1:
+                    colorBitmap = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, width * 4);
+                    this.colorImg.Source = this.colorBitmap;
+                    break;
+                default:
+                    break;
+            }
         }
 
         private void sensor_NotReady()
         {
             this.outputViewbox.Visibility = System.Windows.Visibility.Collapsed;
             this.txtError.Visibility = System.Windows.Visibility.Visible;
-        }
-
-        /// <summary>
-        /// Handles the color frame data arriving from the sensor
-        /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="e">event arguments</param>
-        private void Reader_ColorFrameArrived(object sender, ColorFrameArrivedEventArgs e)
-        {
-            // ColorFrame is IDisposable
-            using (ColorFrame colorFrame = e.FrameReference.AcquireFrame())
-            {
-                if (colorFrame != null)
-                {
-                    FrameDescription colorFrameDescription = colorFrame.FrameDescription;
-
-                    using (KinectBuffer colorBuffer = colorFrame.LockRawImageBuffer())
-                    {
-                        this.colorBitmap.Lock();
-
-                        // verify data and write the new color frame data to the display bitmap
-                        if ((colorFrameDescription.Width == this.colorBitmap.PixelWidth) && (colorFrameDescription.Height == this.colorBitmap.PixelHeight))
-                        {
-                            colorFrame.CopyConvertedFrameDataToIntPtr(
-                                this.colorBitmap.BackBuffer,
-                                (uint)(colorFrameDescription.Width * colorFrameDescription.Height * 4),
-                                ColorImageFormat.Bgra);
-
-                            this.colorBitmap.AddDirtyRect(new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight));
-                        }
-
-                        this.colorBitmap.Unlock();
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Handles the depth frame data arriving from the sensor
-        /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="e">event arguments</param>
-        private void sensor_DepthFramesReady(object sender, DepthFrameArrivedEventArgs e)
-        {
-            using (DepthFrame depthFrame = e.FrameReference.AcquireFrame())
-            {
-                if (depthFrame != null)
-                {
-
-                    if (chkAutoMin.IsChecked == true)
-                        sliderMin.Value = depthFrame.DepthMinReliableDistance;
-
-                    if (chkAutoMax.IsChecked == true)
-                        sliderMax.Value = depthFrame.DepthMaxReliableDistance;
-
-                    bool depthFrameProcessed = false;
-
-                    // the fastest way to process the body index data is to directly access 
-                    // the underlying buffer
-                    using (Microsoft.Kinect.KinectBuffer depthBuffer = depthFrame.LockImageBuffer())
-                    {
-                        // verify data and write the color data to the display bitmap
-                        if (((this.depthFrameDescription.Width * this.depthFrameDescription.Height) == (depthBuffer.Size / this.depthFrameDescription.BytesPerPixel)) &&
-                            (this.depthFrameDescription.Width == this.depthBitmap.PixelWidth) && (this.depthFrameDescription.Height == this.depthBitmap.PixelHeight))
-                        {
-                            // Note: In order to see the full range of depth (including the less reliable far field depth)
-                            // we are setting maxDepth to the extreme potential depth threshold
-                            ushort maxDepth = ushort.MaxValue;
-
-                            // If you wish to filter by reliable depth distance, uncomment the following line:
-                            //// maxDepth = depthFrame.DepthMaxReliableDistance
-
-                            this.ProcessDepthFrameData(depthBuffer.UnderlyingBuffer, depthBuffer.Size, depthFrame.DepthMinReliableDistance, maxDepth);
-                            depthFrameProcessed = true;
-                        }
-                    }
-
-                    if (depthFrameProcessed)
-                    {
-                        this.RenderDepthPixels();
-                        blobCount = 0;
-                        BlobDetection();
-                    }
-                }
-            }
-
-            if (lastFrame != null)
-            {
-                frameCounter++;
-                deltaTime += (DateTime.Now - lastFrame).TotalSeconds;
-                if (deltaTime >= 1)
-                {
-                    txtFPS.Text = frameCounter.ToString() + " FPS";
-                    deltaTime = 0;
-                    frameCounter = 0;
-                }
-            }
-            lastFrame = DateTime.Now;
-        }
-
-        /// <summary>
-        /// Directly accesses the underlying image buffer of the DepthFrame to 
-        /// create a displayable bitmap.
-        /// This function requires the /unsafe compiler option as we make use of direct
-        /// access to the native memory pointed to by the depthFrameData pointer.
-        /// </summary>
-        /// <param name="depthFrameData">Pointer to the DepthFrame image data</param>
-        /// <param name="depthFrameDataSize">Size of the DepthFrame image data</param>
-        /// <param name="minDepth">The minimum reliable depth value for the frame</param>
-        /// <param name="maxDepth">The maximum reliable depth value for the frame</param>
-        private unsafe void ProcessDepthFrameData(IntPtr depthFrameData, uint depthFrameDataSize, ushort minDepth, ushort maxDepth)
-        {
-            // depth frame data is a 16 bit value
-            ushort* frameData = (ushort*)depthFrameData;
-
-            // convert depth to a visual representation
-            for (int i = 0; i < (int)(depthFrameDataSize / this.depthFrameDescription.BytesPerPixel); ++i)
-            {
-                // Get the depth for this pixel
-                ushort depth = frameData[i];
-
-                // To convert to a byte, we're mapping the depth value to the byte range.
-                // Values outside the reliable depth range are mapped to 0 (black).
-                this.depthPixels[i] = (byte)(depth >= minDepth && depth <= maxDepth ? (depth / MapDepthToByte) : 0);
-            }
-        }
-
-        /// <summary>
-        /// Renders color pixels into the writeableBitmap.
-        /// </summary>
-        private void RenderDepthPixels()
-        {
-            this.depthBitmap.WritePixels(
-                new Int32Rect(0, 0, this.depthBitmap.PixelWidth, this.depthBitmap.PixelHeight),
-                this.depthPixels,
-                this.depthBitmap.PixelWidth,
-                0);
         }
 
         void BlobDetection()
@@ -421,7 +432,7 @@ namespace KinectWPFOpenCV
                         people[blobCount].boundingRectOriginY = (float)((double)contours.BoundingRectangle.Location.Y / (double)gray_image.Height);
                         people[blobCount].centroidX = (float)(centroidX / (double)gray_image.Width);
                         people[blobCount].centroidY = (float)(centroidY / (double)gray_image.Height);
-                        people[blobCount].depth = (float)(this.depthPixels[(int)centroidX + (int)centroidY * this.depthFrameDescription.Width]);
+                        people[blobCount].depth = (float)(this.depthPixels[(int)centroidX + (int)centroidY * this.width]);
                         people[blobCount].velocityX = 0;
                         people[blobCount].velocityY = 0;
 
@@ -702,20 +713,7 @@ namespace KinectWPFOpenCV
             {
                 udpWriter.Close();
             }
-            if (null != this.sensor)
-            {
-                this.sensor.Close();
-            }
-            if (null != this.depthReader)
-            {
-                this.depthReader.Dispose();
-                this.depthReader = null;
-            }
-            if (null != this.colorReader)
-            {
-                this.colorReader.Dispose();
-                this.colorReader = null;
-            }
+            stop = true;
             if (null != this.backgroundCaptureKey)
                 this.backgroundCaptureKey.Dispose();
             if (null != this.exitKey)

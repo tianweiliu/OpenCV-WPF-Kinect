@@ -4,7 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.Kinect;
+//using Microsoft.Kinect;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Emgu.CV;

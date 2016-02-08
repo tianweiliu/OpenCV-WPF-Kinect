@@ -47,25 +47,28 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>Status.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Emgu.CV, Version=2.4.10.1939, Culture=neutral, PublicKeyToken=7281126722ab4438, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Emgu\emgucv-windows-universal-cuda 2.4.10.1940\bin\Emgu.CV.dll</HintPath>
+    <Reference Include="Emgu.CV">
+      <HintPath>EmguCV\Emgu.CV.dll</HintPath>
     </Reference>
-    <Reference Include="Emgu.CV.UI, Version=2.4.10.1939, Culture=neutral, PublicKeyToken=7281126722ab4438, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Emgu\emgucv-windows-universal-cuda 2.4.10.1940\bin\Emgu.CV.UI.dll</HintPath>
+    <Reference Include="Emgu.CV.DebuggerVisualizers.VS2013">
+      <HintPath>EmguCV\Emgu.CV.DebuggerVisualizers.VS2013.dll</HintPath>
     </Reference>
-    <Reference Include="Emgu.Util, Version=2.4.10.1939, Culture=neutral, PublicKeyToken=7281126722ab4438, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Emgu\emgucv-windows-universal-cuda 2.4.10.1940\bin\Emgu.Util.dll</HintPath>
+    <Reference Include="Emgu.CV.UI">
+      <HintPath>EmguCV\Emgu.CV.UI.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Kinect, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="Emgu.Util">
+      <HintPath>EmguCV\Emgu.Util.dll</HintPath>
+    </Reference>
+    <Reference Include="libpxcclr, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Intel\PCSDK\bin\win32\libpxcclr.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
@@ -80,9 +83,8 @@
     <Reference Include="WindowsBase" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
-    <Reference Include="ZedGraph, Version=5.1.5.28844, Culture=neutral, PublicKeyToken=02a83cbd123fcd60, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Emgu\emgucv-windows-universal-cuda 2.4.10.1940\bin\ZedGraph.dll</HintPath>
+    <Reference Include="ZedGraph">
+      <HintPath>EmguCV\ZedGraph.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -90,6 +92,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ImageHelpers.cs" />
+    <Compile Include="raw_streams.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -99,7 +103,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="KeyboardHandler.cs" />
-    <Compile Include="ImageHelpers.cs" />
     <Compile Include="jsOSCBundle.cs" />
     <Compile Include="jsOSCListener.cs" />
     <Compile Include="jsOSCMessage.cs" />
@@ -161,6 +164,9 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Status.ico" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="cudart32_65.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -173,7 +179,6 @@
     <Content Include="opencv_imgproc2410.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Resource Include="Status.ico" />
     <Content Include="WriteableBitmapEx.Wpf.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
